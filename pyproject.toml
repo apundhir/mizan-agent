@@ -7,7 +7,7 @@ name = "mizan"
 version = "0.5.2"
 description = "Agentic reconciliation and verification system (POC) - deterministic core, agentic edges"
 requires-python = ">=3.12"
-license = { text = "Proprietary" }
+license = { text = "Apache-2.0" }
 
 dependencies = [
   "pydantic>=2.9",
