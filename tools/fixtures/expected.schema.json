@@ -1,0 +1,236 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Fixture expectation",
+  "description": "The derived expectation for one scored fixture. Written by tools/fixtures/derive.py and read by src/tda/eval/expectation.py. Neither side may import the other, so this file is the contract between them: a change here is a change both packages must follow, and the schema is validated on write and on read so a drift fails loudly rather than scoring against a stale shape. Every figure is a decimal STRING, never a JSON number, because the pipeline compares Decimals and a float round-trip would reintroduce the drift the tolerance policy exists to make explicit.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "fixture_set_version",
+    "fixture_id",
+    "why",
+    "mutation",
+    "status",
+    "exhaustive",
+    "findings",
+    "definitional_items"
+  ],
+  "properties": {
+    "fixture_set_version": {
+      "type": "string",
+      "description": "tools.fixtures.FIXTURE_SET_VERSION at derivation time. The scorer refuses a fixture derived by a different version rather than scoring against an expectation whose meaning may have moved."
+    },
+    "fixture_id": {
+      "type": "string",
+      "pattern": "^F[1-6]$"
+    },
+    "why": {
+      "type": "string",
+      "minLength": 20,
+      "description": "What this fixture defends against, in a sentence. Carried into the eval report so a reader of the scorecard does not have to open the spec."
+    },
+    "mutation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "description": "The mutation as declared, echoed for the report. The scorer never reasons from this: everything it asserts is in `status`, `findings` and `definitional_items`, already derived. Present so a failing fixture can be read without opening the spec.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "none",
+            "transpose_digits",
+            "recompute_under",
+            "delete_dimension",
+            "relabel"
+          ]
+        },
+        "metric": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "period": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "permutation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "new_label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resolvable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "ESCALATED",
+        "REJECTED",
+        "HALTED"
+      ],
+      "description": "The expected VerdictStatus. Asserted separately from each finding's escalates_to: a run that halted for an unrelated reason would otherwise satisfy F6 by accident."
+    },
+    "exhaustive": {
+      "const": true,
+      "description": "The finding lists are complete. The scorer asserts set equality against the verdict, not containment, which is what makes a false positive on a control fixture a failure rather than an unnoticed extra."
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/expected_finding"
+      },
+      "description": "Non-definitional findings, matching Verdict.findings. A V2 here is a contract violation on both sides."
+    },
+    "definitional_items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/expected_finding"
+      },
+      "description": "V2 only, matching Verdict.definitional_items. Kept separate because the verdict keeps them separate: a definitional disagreement is not a hotel error and must not be filed as one."
+    }
+  },
+  "$defs": {
+    "expected_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "variance_class",
+        "severity",
+        "escalates_to",
+        "evidence"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "MetricKey.rendered, e.g. guests_by_nationality:2026-01:nationality_iso2=DE. The join key between expectation and verdict; finding ids are minted per run and cannot be predicted."
+        },
+        "variance_class": {
+          "enum": [
+            "V1",
+            "V2",
+            "V5",
+            "V6",
+            "V7"
+          ]
+        },
+        "severity": {
+          "enum": [
+            "blocking",
+            "material",
+            "informational"
+          ]
+        },
+        "escalates_to": {
+          "enum": [
+            "hotel",
+            "policy_owner",
+            "human_review",
+            "none"
+          ]
+        },
+        "claimed": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Decimal as a string. Null where the workbook omitted the figure (D-MAT-04)."
+        },
+        "computed": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Decimal as a string. Null where no source value could be established (V7)."
+        },
+        "difference": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "proposed_correction": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Non-null for V1 only. Proposing a corrected value for a definitional variance would tell a hotel to change a number that is not wrong."
+        },
+        "explaining_permutation": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Required for V2, forbidden otherwise (D-CLS-07)."
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "excel",
+            "source"
+          ],
+          "description": "What a reviewer can open. At most one side may be a typed absence; both absent is refused by the Finding contract and must never be derived.",
+          "properties": {
+            "excel": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "sheet",
+                    "cell"
+                  ],
+                  "properties": {
+                    "sheet": {
+                      "type": "string"
+                    },
+                    "cell": {
+                      "type": "string",
+                      "pattern": "^[A-Z]+[0-9]+$"
+                    }
+                  }
+                },
+                {
+                  "const": "not_reached",
+                  "description": "A typed absence. Legitimate for a V5 whose claimed value is null, and for a V7."
+                }
+              ]
+            },
+            "source": {
+              "enum": [
+                "pdf_page",
+                "inventory_ref",
+                "not_reached"
+              ],
+              "description": "What the claim was checked against. `pdf_page` asserts a PdfRef carrying a page and a row range, without pinning which page: the page a figure derives from is the extractor's to determine, and pinning it here would make the expectation a second implementation of extraction. `inventory_ref` asserts an InventoryRef, which carries a file and a data row range and deliberately has no page. It is not an alternative spelling of pdf_page: D-RNA-01 makes rooms available a property attribute rather than a reservation attribute, so it is absent from the reservation export and arrives in a separate CSV. Collapsing the two would make a correct citation read as a wrong page."
+            }
+          }
+        }
+      }
+    }
+  }
+}

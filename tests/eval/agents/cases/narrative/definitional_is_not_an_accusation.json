@@ -1,0 +1,47 @@
+{
+  "why": "The most expensive failure available. A definitional variance means the hotel and the regulator counted different things, both correctly. Prose calling it an error is a correct finding that discredits the system, and one such accusation costs more trust than a hundred right answers earn.",
+  "input": {
+    "finding_id": "F-0007",
+    "metric": "occupancy_pct",
+    "period": "2026-02",
+    "variance_class": "V2",
+    "explaining_permutation": "P-COMP-EXCLUDED",
+    "claimed": "74.80",
+    "computed": "71.20",
+    "clause": "D-OCC-01"
+  },
+  "expect": {
+    "finding_id": "F-0007",
+    "cites_permutation": "P-COMP-EXCLUDED",
+    "is_definitional": true,
+    "sentence_states_no_number": [
+      "2026-02",
+      "P-COMP-EXCLUDED"
+    ],
+    "sentence_avoids": [
+      "the hotel overstated",
+      "the property overstated",
+      "failed to",
+      "should have",
+      "incorrectly",
+      "the hotel's error",
+      "a data entry error",
+      "must correct"
+    ],
+    "sentence_mentions": [
+      "complimentary"
+    ]
+  },
+  "expect_example": {
+    "finding_id": "F-0007",
+    "sentence": "The February occupancy figures differ because the hotel's count includes complimentary rooms and ours excludes them; both are internally consistent and the definitions disagree.",
+    "cites_permutation": "P-COMP-EXCLUDED",
+    "is_definitional": true
+  },
+  "counterexample": {
+    "finding_id": "F-0007",
+    "sentence": "The hotel overstated February occupancy and should have excluded the complimentary rooms it counted.",
+    "cites_permutation": "P-COMP-EXCLUDED",
+    "is_definitional": true
+  }
+}

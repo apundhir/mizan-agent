@@ -1,0 +1,298 @@
+{
+  "agent": "reviewer_assist",
+  "effort": "high",
+  "key": "11fe8ac135f5cec6dbe578a80ca9b469",
+  "model_id": "claude-sonnet-5",
+  "prompt_version": "v1",
+  "request_canonical": {
+    "agent": "reviewer_assist",
+    "effort": "high",
+    "key_schema_version": 1,
+    "max_tokens": 16000,
+    "messages": [
+      {
+        "content": "run_id: run-evalcase0001\nstatus: ESCALATED\nhotel: MZN-DXB-001  period: 2026-Q1\npolicy_version: 1.3.0\n\nfindings against the hotel:\n  F-0001: room_nights_sold 2026-01 | class=V1 | severity=material | escalates_to=hotel | clause=D-RNS-01\n  F-0003: guests_by_nationality 2026-03 | class=V1 | severity=material | escalates_to=hotel | clause=D-NAT-01 | nationality_iso2=DE\n\ndefinitional items, never counted as hotel errors (D-MAT-06):\n  F-0002: occupancy_pct 2026-02 | class=V2 | severity=material | escalates_to=policy_owner | clause=D-OCC-01 | explained_by=P-COMP-EXCLUDED\n\nNo figures and no counts appear above, deliberately. Both are on the officer's screen already, rendered from the verdict by code; a number you wrote would sit beside them with nothing to tell it apart. Name the findings you mean by id rather than counting them.\n\nevidence for F-0001:\n  source: pdf file='pms_2026-01.pdf' page=4 row_start=12 row_end=18  (pms_2026-01.pdf p.4 rows 12-18)\n  excel: sheet='Occupancy' cell='B5'  (Occupancy!B5)\n  clause: D-RNS-01\n\nevidence for F-0003:\n  source: pdf file='pms_2026-03.pdf' page=11 row_start=40 row_end=44  (pms_2026-03.pdf p.11 rows 40-44)\n  excel: sheet='Nationality' cell='D14'  (Nationality!D14)\n  clause: D-NAT-01\n\nevidence for F-0002:\n  source: pdf file='pms_2026-02.pdf' page=7 row_start=3 row_end=9  (pms_2026-02.pdf p.7 rows 3-9)\n  excel: sheet='Occupancy' cell='C6'  (Occupancy!C6)\n  clause: D-OCC-01\n\nD-NAT-01: The metric counts guests — people — not arrivals, not reservations, and not room-nights. | Yes — [A-06](02-assumption-register.md#a-06)\n\nD-OCC-01: `occupancy_pct(month) = 100 × room_nights_sold(month) ÷ room_nights_available(month)`.\n\nD-RNS-01: `nights = departure_date − arrival_date`, in whole days. For a stay arriving 2026-01-10 and departing 2026-01-13, `nights = 3`.\n\nAn officer reviewing this verdict asks:\n\nDid the hotel inflate the January figure deliberately?\n\nAnswer from what you were shown above, citing what you used. Cite references exactly as they were given to you. If the answer is not above, decline and say what is missing.",
+        "role": "user"
+      }
+    ],
+    "model_id": "claude-sonnet-5",
+    "output_schema": {
+      "$defs": {
+        "CellRef": {
+          "examples": [
+            "D14",
+            "AB7"
+          ],
+          "pattern": "^[A-Z]{1,3}[1-9][0-9]{0,6}$",
+          "type": "string"
+        },
+        "Citation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PdfCitation"
+            },
+            {
+              "$ref": "#/$defs/ExcelCitation"
+            },
+            {
+              "$ref": "#/$defs/InventoryCitation"
+            },
+            {
+              "$ref": "#/$defs/ClauseCitation"
+            }
+          ]
+        },
+        "ClauseCitation": {
+          "additionalProperties": false,
+          "description": "A clause of the ruleset the verdict was produced under.\n\nThe answer to *\"which rule made this definitional?\"* is a clause id, and the officer can read\nthe clause in `policy.yaml` and `docs/01-definitions.md`. `policy_version` is carried because a\nclause without the version it was read from is a citation of a moving target — and this system\nstamps a policy version into every verdict precisely so that cannot happen.",
+          "properties": {
+            "clause": {
+              "pattern": "^D-[A-Z]+-[0-9]{2}$",
+              "title": "Clause",
+              "type": "string"
+            },
+            "kind": {
+              "const": "clause",
+              "default": "clause",
+              "title": "Kind",
+              "type": "string"
+            },
+            "policy_version": {
+              "minLength": 1,
+              "title": "Policy Version",
+              "type": "string"
+            }
+          },
+          "required": [
+            "clause",
+            "policy_version"
+          ],
+          "title": "ClauseCitation",
+          "type": "object"
+        },
+        "ExcelCitation": {
+          "additionalProperties": false,
+          "description": "A cell of the submitted workbook.\n\nNote for anyone grepping: `tda.contracts.ExcelCitation` is a **different** thing - the\n`ExcelRef | NotReached` alias a `Finding` carries. The two are related (this one wraps the\n`ExcelRef` half) and the collision is unfortunate; import the module rather than the name if\nboth are in scope.",
+          "properties": {
+            "kind": {
+              "const": "excel",
+              "default": "excel",
+              "title": "Kind",
+              "type": "string"
+            },
+            "ref": {
+              "$ref": "#/$defs/ExcelRef"
+            }
+          },
+          "required": [
+            "ref"
+          ],
+          "title": "ExcelCitation",
+          "type": "object"
+        },
+        "ExcelRef": {
+          "additionalProperties": false,
+          "description": "Where in the submitted workbook a claim was read from.",
+          "properties": {
+            "cell": {
+              "$ref": "#/$defs/CellRef"
+            },
+            "sheet": {
+              "minLength": 1,
+              "title": "Sheet",
+              "type": "string"
+            }
+          },
+          "required": [
+            "sheet",
+            "cell"
+          ],
+          "title": "ExcelRef",
+          "type": "object"
+        },
+        "InventoryCitation": {
+          "additionalProperties": false,
+          "description": "Days of the room inventory reference.\n\nThe one source with no page. See the module docstring, and `tda.contracts.refs.InventoryRef`\nfor why dressing it as a PDF reference would put a citation in front of a reviewer that leads\nnowhere.",
+          "properties": {
+            "kind": {
+              "const": "inventory",
+              "default": "inventory",
+              "title": "Kind",
+              "type": "string"
+            },
+            "ref": {
+              "$ref": "#/$defs/InventoryRef"
+            }
+          },
+          "required": [
+            "ref"
+          ],
+          "title": "InventoryCitation",
+          "type": "object"
+        },
+        "InventoryRef": {
+          "additionalProperties": false,
+          "description": "Where in the room inventory reference a value came from.\n\nThis type exists because of a gap the metric library walked straight into, and the gap mirrors\nsomething real about the domain. `room_nights_available` is in scope, so a workbook can claim it\nand the system must be able to cite what it checked the claim against — but D-RNA-01 is explicit\nthat rooms available is a **property attribute, not a reservation attribute**, and therefore does\nnot appear in the reservation export at all. It comes from a separate CSV.\n\nSo the one metric whose source is not a PDF is exactly the one the definitions single out as not\nbeing a reservation attribute. A `PdfRef` cannot describe it: there is no page, and inventing\n`page=1` to satisfy a type would put a false citation in front of a reviewer.\n\nNo `page`, therefore, and rows are 1-indexed **data** rows — the header is row 0, so row 1 is the\nfirst day. That matches how a spreadsheet application numbers the file a reviewer will open.",
+          "properties": {
+            "file": {
+              "description": "Filename as submitted, not an absolute path.",
+              "minLength": 1,
+              "title": "File",
+              "type": "string"
+            },
+            "row_end": {
+              "description": "Inclusive. Equal to row_start for a single day.",
+              "minimum": 1,
+              "title": "Row End",
+              "type": "integer"
+            },
+            "row_start": {
+              "description": "1-indexed data row; the header is not row 1.",
+              "minimum": 1,
+              "title": "Row Start",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "file",
+            "row_start",
+            "row_end"
+          ],
+          "title": "InventoryRef",
+          "type": "object"
+        },
+        "PdfCitation": {
+          "additionalProperties": false,
+          "description": "Rows of a submitted report.\n\nWraps `PdfRef` rather than restating its fields, so a citation inherits the rules that type\nalready enforces — 1-indexed pages, ordered rows, and a bare filename rather than a path. An\nabsolute path in a citation leaks the machine that ran the verification into an answer a hotel\nmay eventually read.",
+          "properties": {
+            "kind": {
+              "const": "pdf",
+              "default": "pdf",
+              "title": "Kind",
+              "type": "string"
+            },
+            "ref": {
+              "$ref": "#/$defs/PdfRef"
+            }
+          },
+          "required": [
+            "ref"
+          ],
+          "title": "PdfCitation",
+          "type": "object"
+        },
+        "PdfRef": {
+          "additionalProperties": false,
+          "description": "Where in a PDF a value came from. Page and rows are 1-indexed, as a human reads them.",
+          "properties": {
+            "file": {
+              "description": "Filename as submitted, not an absolute path.",
+              "minLength": 1,
+              "title": "File",
+              "type": "string"
+            },
+            "page": {
+              "description": "1-indexed, matching what a PDF reader displays.",
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            },
+            "row_end": {
+              "description": "Inclusive. Equal to row_start for a single row.",
+              "minimum": 1,
+              "title": "Row End",
+              "type": "integer"
+            },
+            "row_start": {
+              "description": "1-indexed row within the page's table.",
+              "minimum": 1,
+              "title": "Row Start",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "file",
+            "page",
+            "row_start",
+            "row_end"
+          ],
+          "title": "PdfRef",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "One question, and the agent's answer to it: prose with citations, or a stated refusal.\n\n## Why this is one flat model rather than `Answered | Declined`\n\nIt was a discriminated union, and that was the more expressive design. Recording it against\nthe live API killed it: **every answered case validated and every declined case failed.**\nAsked to decline, the model emitted the union of *both* branches' fields — `outcome:\n\"declined\"` alongside `prose: \"\"` and a populated `citations`, with `reason` absent entirely.\nA `oneOf` with a discriminator is well-formed JSON Schema; constrained decoding flattened it\nanyway, and `extra=\"forbid\"` then refused the result. The same thing happened to\n`LabelResolution`, which had carried the identical idiom since M4 and had never once been\nrecorded.\n\nSo the shape the API can actually produce is a flat object with a discriminator field, and the\ninvariant moves from the type system to `_the_outcome_matches_its_evidence` below. **The\nguarantee is unchanged**: an answer that claims to be answered and carries no citation cannot\nbe constructed, and the failure is still a validation error rather than something a later\nstage has to remember to check. What is lost is only that the type checker can no longer prove\nit — a real cost, recorded in ADR-0009 rather than papered over.\n\nThe alternative was to let the adapter drop the fields the discriminator says do not belong.\nThat would have kept the union, and it would have made the adapter edit what the model\nreturned, which is the one thing this repository argues hardest against.\n\n`question` is echoed back for the reason `LabelResolution.raw_label` is: the record has to\nstand alone. An answer in a trace with no question attached is unreadable six weeks later.",
+      "properties": {
+        "citations": {
+          "default": [],
+          "description": "What the answer rests on: report rows, workbook cells, policy clauses. Non-empty when answered - see the validator - and empty when declined, which is the honest answer: a refusal rests on nothing.",
+          "items": {
+            "$ref": "#/$defs/Citation"
+          },
+          "title": "Citations",
+          "type": "array"
+        },
+        "outcome": {
+          "description": "Which kind of answer this is. The one field that decides how to read the rest, so it is required rather than defaulted - a default would let a malformed answer arrive as the reassuring case.",
+          "enum": [
+            "answered",
+            "declined"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "prose": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The answer, in the officer's terms. Required when answered, forbidden when declined. Read beside the citations, never instead of them.",
+          "title": "Prose"
+        },
+        "question": {
+          "minLength": 1,
+          "title": "Question",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Why the agent could not evidence an answer. Required when declined, forbidden when answered. A sentence the officer can act on, not a code.",
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "question",
+        "outcome"
+      ],
+      "title": "CitedAnswer",
+      "type": "object"
+    },
+    "prompt_version": "v1",
+    "system": "You answer a verification officer's questions about one verdict, while they are deciding whether to\nsign it. They are not testing you; they are trying to decide whether to put their name behind a\nnumber. Everything below follows from that.\n\n## The shape of your answer\n\nSet `outcome` to `answered` or `declined`, and fill in **only** the fields that belong to it:\n\n- `answered` -> `prose` and at least one `citation`. Leave `reason` out entirely.\n- `declined` -> `reason`. Leave `prose` out and send no citations.\n\nDo not send a field as an empty string or an empty list to signal \"not applicable\". Omit it. An\n`answered` with no citation, or a `declined` carrying prose, is rejected before the officer sees\nanything.\n\n## Every answer carries citations, and the citations are the answer\n\nYou return either an answer with at least one citation, or a decline. There is no third shape, and\nan answer with no citation is not something you can return — the contract rejects it and the officer\nsees nothing.\n\nA citation is a **pointer to something already in this run**: rows of a report, a cell of the\nsubmitted workbook, rows of the inventory reference, or a clause of the definitions. It is never a\nquotation you composed. The officer follows it to the same evidence pane the finding itself uses, so\na reference that looks right and leads nowhere costs them more than a refusal does.\n\nCite what you actually used. `get_evidence` gives you a finding's references in exactly the fields\na citation takes — copy them. A page, a row range, a sheet or a cell you did not read there is a\nfabrication, it is checked against the verdict before your answer is shown, and it is rejected.\n\n**Cite the rule the question is actually about.** If the officer asks which findings are the\nhotel's own errors, the governing rule is the one that keeps definitional items out of that count —\ncite it, do not merely mention it in passing while citing each finding's own clause. An answer that\nnames a rule in prose and cites something else has left the officer to find it.\n\nSay where a definitional item goes. \"It is definitional\" is half the answer; \"it is definitional\nand escalates to the policy owner rather than to the property\" is the half they act on.\n\nClause citations carry the policy version. Use the `policy_version` this verdict records; a clause\ncited under a different version is a citation of a moving target.\n\n## You have no figures, and you must not supply them\n\nThe tools give you classifications, periods, clauses, causes and references. They do not give you\nclaimed values, computed values or differences, and that is deliberate: the officer has those on\nscreen already, rendered from the verdict by code. A figure in your prose would be a number a model\nwrote, sitting on the same screen as numbers that were computed from reservation records, with\nnothing to tell them apart.\n\nThis includes figures written as words — \"about a tenth\", \"roughly forty room-nights\", \"a handful of\nrows\". If the question is *\"by how much?\"*, say that the difference is shown against the finding and\nname the finding. That is a complete and useful answer.\n\n## Declining is a real answer and three questions in four may deserve it\n\nDecline when the verdict does not contain what the question needs. Some examples of questions you\ncannot answer, and none of them are questions you should try:\n\n- anything about a period, hotel or metric this run did not cover;\n- anything requiring a figure to be computed, recomputed or compared;\n- anything about *why a person did something* — intent is not in the evidence;\n- anything about what another hotel, another quarter or a previous submission showed;\n- anything asking you to predict, recommend a penalty, or say whether the officer should sign.\n\nA decline says what is missing, in a sentence the officer can act on. *\"This verdict covers 2026-Q1;\nit records nothing about December, so there is nothing here to compare\"* tells them what to do next.\n*\"Insufficient context\"* does not.\n\nDecline rather than reaching. An assistant that answers everything is indistinguishable from one\nthat makes things up, and the officer has no way to tell which you are except by checking — which\nis the work you exist to save them.\n\n## The two distinctions worth being exact about\n\n**A clerical error is not a definitional difference.** A clerical error means the hotel got something\nwrong. A definitional difference (`V2`) means the hotel counted one thing and this system counted\nanother and *both counted correctly* — complimentary rooms in or out, a stay spanning two months\napportioned or attributed to arrival. They are carried in separate arrays precisely so they are\nnever added together, and describing a definitional item as an error is the single most damaging\nthing you can say: the property reads it as being called dishonest and re-argues every other figure\nfrom there.\n\n**A blocking finding is not a finding against the hotel.** It means something could not be checked.\nSay so in those terms.\n\n## Echo the question\n\nReturn the officer's question in `question`, character for character as you received it. It is how a\nmisrouted answer is caught, and how the trace stays readable six weeks later.\n\n## Form\n\nAnswer in the officer's terms, in a few sentences at most. Name findings by id where you mean one.\nNo markdown headings, no bullet lists of everything you looked at, no restating the question back\nbefore answering it. They are reading this on a screen beside the finding, with a decision to make.\n\n## Tools\n\n- `get_evidence` — The references one finding cites: a report page or inventory rows, and a workbook cell. Cite these back exactly.\n- `get_policy_clause` — What one clause of the definitions says, by id, e.g. D-MAT-06.\n- `query_verdict` — This verdict's status, counts and findings; or one finding by id. Classifications, clauses and causes. No figures.\n"
+  },
+  "response_json": {
+    "citations": [],
+    "outcome": "declined",
+    "prose": null,
+    "question": "Did the hotel inflate the January figure deliberately?",
+    "reason": "This verdict records that F-0001 (room_nights_sold, 2026-01) is a material V1 discrepancy under D-RNS-01, but intent is not something the evidence captures - it shows a mismatch between the reported figure and the PMS record, not why that mismatch arose. Whether it was deliberate or a clerical mistake cannot be determined from what is in this run."
+  },
+  "usage": {
+    "cache_read_tokens": 0,
+    "input_tokens": 6741,
+    "output_tokens": 159
+  }
+}

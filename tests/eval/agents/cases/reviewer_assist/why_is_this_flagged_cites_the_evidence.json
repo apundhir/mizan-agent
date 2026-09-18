@@ -1,0 +1,124 @@
+{
+  "why": "The question an officer asks first, and the one an assistant is most tempted to answer from fluency alone. The answer must point at the two places the finding actually came from - the report rows and the workbook cell - because an officer who cannot follow the answer has gained a second opinion rather than a check.",
+  "input": {
+    "question": "Why is the January room nights sold figure flagged?",
+    "findings": [
+      {
+        "finding_id": "F-0001",
+        "metric": "room_nights_sold",
+        "period": "2026-01",
+        "variance_class": "V1",
+        "claimed": "1295",
+        "computed": "1285",
+        "clause": "D-RNS-01",
+        "source_ref": {
+          "file": "pms_2026-01.pdf",
+          "page": 4,
+          "row_start": 12,
+          "row_end": 18
+        },
+        "excel_ref": {
+          "sheet": "Occupancy",
+          "cell": "B5"
+        }
+      },
+      {
+        "finding_id": "F-0002",
+        "metric": "occupancy_pct",
+        "period": "2026-02",
+        "variance_class": "V2",
+        "explaining_permutation": "P-COMP-EXCLUDED",
+        "claimed": "74.80",
+        "computed": "71.20",
+        "clause": "D-OCC-01",
+        "source_ref": {
+          "file": "pms_2026-02.pdf",
+          "page": 7,
+          "row_start": 3,
+          "row_end": 9
+        },
+        "excel_ref": {
+          "sheet": "Occupancy",
+          "cell": "C6"
+        }
+      },
+      {
+        "finding_id": "F-0003",
+        "metric": "guests_by_nationality",
+        "period": "2026-03",
+        "variance_class": "V1",
+        "dimension": "nationality_iso2",
+        "dimension_value": "DE",
+        "claimed": "212",
+        "computed": "198",
+        "clause": "D-NAT-01",
+        "source_ref": {
+          "file": "pms_2026-03.pdf",
+          "page": 11,
+          "row_start": 40,
+          "row_end": 44
+        },
+        "excel_ref": {
+          "sheet": "Nationality",
+          "cell": "D14"
+        }
+      }
+    ]
+  },
+  "expect": {
+    "echoes_question": "Why is the January room nights sold figure flagged?",
+    "declines": false,
+    "cites_at_least": 1,
+    "cites": [
+      "pms_2026-01.pdf p.4 rows 12-18"
+    ],
+    "answer_states_no_number": [
+      "2026-01",
+      "F-0001",
+      "D-RNS-01",
+      "V1"
+    ],
+    "answer_mentions": [
+      "F-0001"
+    ]
+  },
+  "expect_example": {
+    "question": "Why is the January room nights sold figure flagged?",
+    "outcome": "answered",
+    "prose": "F-0001 is a transcription variance: the room nights sold figure the workbook states for January does not match what the reservation rows support. The difference is shown against the finding.",
+    "citations": [
+      {
+        "kind": "pdf",
+        "ref": {
+          "file": "pms_2026-01.pdf",
+          "page": 4,
+          "row_start": 12,
+          "row_end": 18
+        }
+      },
+      {
+        "kind": "excel",
+        "ref": {
+          "sheet": "Occupancy",
+          "cell": "B5"
+        }
+      }
+    ]
+  },
+  "counterexample": {
+    "question": "Why is the January room nights sold figure flagged?",
+    "outcome": "answered",
+    "prose": "The hotel overstated January by about ten room nights, roughly a one percent error.",
+    "citations": [
+      {
+        "kind": "pdf",
+        "ref": {
+          "file": "pms_2026-01.pdf",
+          "page": 4,
+          "row_start": 12,
+          "row_end": 18
+        }
+      }
+    ]
+  }
+}

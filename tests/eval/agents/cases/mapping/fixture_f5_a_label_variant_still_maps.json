@@ -1,0 +1,43 @@
+{
+  "why": "F5 (PRD-94) prints Czechia where the demo corpus prints Czech Republic - both resolve to CZ in the committed lookup, so the workbook this case shows the mapper has one different cell of text and no structural change. The mapping outcome must be identical to the clean demo case, and the recording exists only because the digest, which renders labels, differs by one string.",
+  "input": {
+    "workbook": "corpus/fixtures/F5/submission/claims_2026-Q1.xlsx"
+  },
+  "expect": {
+    "unmapped": 0,
+    "metrics_mapped": [
+      "occupancy_pct",
+      "room_nights_sold",
+      "room_nights_available",
+      "guests_by_nationality",
+      "average_daily_rate",
+      "revpar",
+      "average_length_of_stay"
+    ]
+  },
+  "expect_example": {
+    "blocks": [
+      { "metric": "occupancy_pct" },
+      { "metric": "room_nights_sold" },
+      { "metric": "room_nights_available" },
+      { "metric": "guests_by_nationality" },
+      { "metric": "average_daily_rate" },
+      { "metric": "revpar" },
+      { "metric": "average_length_of_stay" }
+    ],
+    "unmapped": []
+  },
+  "counterexample": {
+    "blocks": [
+      { "metric": "occupancy_pct" },
+      { "metric": "room_nights_sold" },
+      { "metric": "room_nights_available" }
+    ],
+    "unmapped": [
+      {
+        "sheet": "Nationality",
+        "reason": "a country label I did not recognise, so I left the whole sheet unmapped"
+      }
+    ]
+  }
+}

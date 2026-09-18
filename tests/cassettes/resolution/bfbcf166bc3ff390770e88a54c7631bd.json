@@ -1,0 +1,94 @@
+{
+  "agent": "resolution",
+  "effort": "low",
+  "key": "bfbcf166bc3ff390770e88a54c7631bd",
+  "model_id": "claude-sonnet-5",
+  "prompt_version": "v1",
+  "request_canonical": {
+    "agent": "resolution",
+    "effort": "low",
+    "key_schema_version": 1,
+    "max_tokens": 16000,
+    "messages": [
+      {
+        "content": "Label from the document: 'Cote dIvoir'\n\nCandidates code produced, most similar first:\n- cote divoire (CI)\n\nChoose one of these or abstain. A name not on this list is not an available answer.",
+        "role": "user"
+      }
+    ],
+    "model_id": "claude-sonnet-5",
+    "output_schema": {
+      "additionalProperties": false,
+      "description": "One label, and the agent's answer about it: a matched country, or a stated abstention.\n\n## Why this is one flat model rather than `Resolved | Abstained`\n\nIt was a discriminated union from M4 until the first cassette recording ran against the live\nAPI, and that recording is what killed it: **every resolved case validated and every abstained case\nfailed.** Asked to abstain, the model emitted the union of both branches' fields — `outcome:\n\"abstained\"` alongside `iso_alpha2: \"\"` and `matched_candidate: \"\"`. A `oneOf` with a\ndiscriminator is well-formed JSON Schema; constrained decoding flattened it anyway, and\n`extra=\"forbid\"` refused the result.\n\nThe idiom had been reviewed, type-checked and unit-tested since M4 and had never once been\nexecuted against a real model, because no cassette had ever been recorded. That is the finding,\nmore than the fix: **a contract nothing has ever produced is a contract nobody has tested**,\nand every test that exercised this one built the object by hand.\n\n`tda.agents.contracts.reviewer_assist.CitedAnswer` carries the same change for the same\nreason, and ADR-0009 records the cost: the invariant is still enforced, but by a validator\nrather than by the type checker.\n\n`raw_label` is echoed back so the record stands alone. A resolution that says only `CI` is\nunreadable six weeks later in a review screen; one that says `'Cote dIvoir' -> CI` is not.",
+      "properties": {
+        "iso_alpha2": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z]{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO 3166-1 alpha-2. Required when resolved, forbidden when abstained. Validated against the committed lookup by the caller; a well-formed code no lookup knows is still rejected.",
+          "title": "Iso Alpha2"
+        },
+        "matched_candidate": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The candidate name this matches, copied from the list that was offered. Required when resolved. Not redundant with `iso_alpha2`: a reviewer needs to see which offered name the agent thought the document meant, because `CI` tells them nothing and `Côte d'Ivoire` tells them everything. A name that was not offered is a fabrication and `tda.agents.resolution` discards the answer on that ground alone.",
+          "title": "Matched Candidate"
+        },
+        "outcome": {
+          "description": "Which kind of answer this is. Required rather than defaulted: a default would let a malformed answer arrive as the confident case.",
+          "enum": [
+            "resolved",
+            "abstained"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "raw_label": {
+          "minLength": 1,
+          "title": "Raw Label",
+          "type": "string"
+        },
+        "reason": {
+          "description": "Why this code, or why not. Required in **both** outcomes, because both need explaining to the human who reads the blocking finding.",
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "raw_label",
+        "outcome",
+        "reason"
+      ],
+      "title": "LabelResolution",
+      "type": "object"
+    },
+    "prompt_version": "v1",
+    "system": "You are shown one label from a hotel's document that the committed country lookup does not contain,\nand a short list of candidates that **code** produced for it. You say which candidate the label\nmeans, or you say you cannot tell.\n\n## What your answer does, and what it does not do\n\nIt does not resolve anything. The label has already produced a blocking finding and it stays\nblocking whatever you say. A human will read your answer beside that finding and either accept it —\nin which case they add one line to a committed lookup file — or reject it.\n\nSo the useful answer is the one that saves that person a search, and the harmful answer is the one\nthat survives their skim because it sounds right. `Austria` and `Australia` differ by three\ncharacters and by eleven thousand kilometres. A guest counted under the wrong country is a wrong\nnumber that looks exactly like a right one, and nothing downstream can detect it.\n\n## The shape of your answer\n\nSet `outcome` to `resolved` or `abstained`, and fill in **only** the fields that belong to it:\n\n- `resolved` -> `iso_alpha2`, `matched_candidate` (copied from the offered list), and `reason`.\n- `abstained` -> `reason` alone. Leave `iso_alpha2` and `matched_candidate` out entirely.\n\nDo not send a field as an empty string to signal \"not applicable\". Omit it. `reason` is required\neither way, because both outcomes are read by the human who clears the finding.\n\n## Two plausible candidates means abstain, every time\n\nIf more than one offered candidate could genuinely be what the document meant, **abstain**. Do not\nrank them and pick the better one. `Austrlia` sits one character from `Austria` and two from\n`Australia`, and those are different continents — a confident answer there is a guess with a\ncitation attached, and the cost of a wrong guess falls on a hotel that did nothing wrong.\n\nResolve only when one candidate is the obvious reading and the others plainly are not: a stripped\naccent, a transposition, a missing space, an official-vs-common name pair. Anything else is exactly\nwhat the abstention is for, and naming both candidates in your `reason` is more useful to the human\nwho clears it than either code would be.\n\n## Choose from the list, or abstain\n\nThe candidates are the only available answers. A country not on the list is not a choice you have —\nnot because the list is necessarily complete, but because a name you supply yourself has not been\nchecked against anything, and the person reading it cannot tell the difference.\n\nAbstain when:\n\n- **two candidates are both plausible.** `Austria` and `Australia` will both appear for a label\n  close to either. That is not a shortcoming of the list; it is the situation, and picking one is\n  guessing with extra steps.\n- **the list is empty.** Say what the label appears to be, if anything — \"this looks like a room\n  type rather than a country\" is a useful sentence.\n- **the label is not a country at all.** A total row, a rate code, a heading that ran into the\n  wrong column. Say which.\n- **the match rests only on the string.** `Niger` and `Nigeria`, `Guinea` and `Papua New Guinea`,\n  `Korea` and either Korea. Character similarity is not evidence about a country.\n\nResolve when the label is a recognisable form of exactly one candidate: a spelling variant, an\nabbreviation you can name, a transliteration, a missing accent, a transposition. Say *which* of\nthose it is in your reason — \"the accent is missing from Côte d'Ivoire\" is checkable, \"it looks\nlike Côte d'Ivoire\" is not.\n\n## Your reason is read by a person, not by a parser\n\nOne or two sentences. Name the specific relationship between the label and the candidate, and say\nwhat would change your mind. If you abstained, say what you would need in order not to: often it is\none more column from the document, and saying so tells the reviewer where to look.\n\n## What you never return\n\nA number of any kind. A country name you were not offered. A code you inferred from the label's\nshape rather than from a candidate. Confidence in place of a reason.\n\n## Tools\n\n- `fuzzy_candidates` — The committed country names most similar to a label, ranked by code. Code produces this list; you choose from it or decline.\n- `iso_lookup` — What an ISO 3166-1 alpha-2 code denotes, or nothing if unknown.\n"
+  },
+  "response_json": {
+    "iso_alpha2": "CI",
+    "matched_candidate": "cote divoire",
+    "outcome": "resolved",
+    "raw_label": "Cote dIvoir",
+    "reason": "The label is 'Cote dIvoir' missing accents and an apostrophe/final 'e', matching the single offered candidate 'cote divoire' (Côte d'Ivoire) with no other plausible reading."
+  },
+  "usage": {
+    "cache_read_tokens": 0,
+    "input_tokens": 2825,
+    "output_tokens": 128
+  }
+}

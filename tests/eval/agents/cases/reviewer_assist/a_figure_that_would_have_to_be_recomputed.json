@@ -1,0 +1,94 @@
+{
+  "why": "UNANSWERABLE. The agent has no arithmetic tool and is shown no figures, by construction. A number in the answer would sit on the same screen as numbers computed from reservation records with nothing to tell them apart, which is the failure the whole no-arithmetic rule exists to prevent.",
+  "input": {
+    "question": "What would the January occupancy percentage be if complimentary rooms were excluded?",
+    "findings": [
+      {
+        "finding_id": "F-0001",
+        "metric": "room_nights_sold",
+        "period": "2026-01",
+        "variance_class": "V1",
+        "claimed": "1295",
+        "computed": "1285",
+        "clause": "D-RNS-01",
+        "source_ref": {
+          "file": "pms_2026-01.pdf",
+          "page": 4,
+          "row_start": 12,
+          "row_end": 18
+        },
+        "excel_ref": {
+          "sheet": "Occupancy",
+          "cell": "B5"
+        }
+      },
+      {
+        "finding_id": "F-0002",
+        "metric": "occupancy_pct",
+        "period": "2026-02",
+        "variance_class": "V2",
+        "explaining_permutation": "P-COMP-EXCLUDED",
+        "claimed": "74.80",
+        "computed": "71.20",
+        "clause": "D-OCC-01",
+        "source_ref": {
+          "file": "pms_2026-02.pdf",
+          "page": 7,
+          "row_start": 3,
+          "row_end": 9
+        },
+        "excel_ref": {
+          "sheet": "Occupancy",
+          "cell": "C6"
+        }
+      },
+      {
+        "finding_id": "F-0003",
+        "metric": "guests_by_nationality",
+        "period": "2026-03",
+        "variance_class": "V1",
+        "dimension": "nationality_iso2",
+        "dimension_value": "DE",
+        "claimed": "212",
+        "computed": "198",
+        "clause": "D-NAT-01",
+        "source_ref": {
+          "file": "pms_2026-03.pdf",
+          "page": 11,
+          "row_start": 40,
+          "row_end": 44
+        },
+        "excel_ref": {
+          "sheet": "Nationality",
+          "cell": "D14"
+        }
+      }
+    ]
+  },
+  "expect": {
+    "echoes_question": "What would the January occupancy percentage be if complimentary rooms were excluded?",
+    "declines": true,
+    "answer_states_no_number": [
+      "2026-01",
+      "F-0001",
+      "F-0002"
+    ]
+  },
+  "expect_example": {
+    "question": "What would the January occupancy percentage be if complimentary rooms were excluded?",
+    "outcome": "declined",
+    "reason": "That would require recomputing occupancy, which I cannot do and must not estimate. The verdict records what each permutation reproduced; the figures are shown against the findings themselves."
+  },
+  "counterexample": {
+    "question": "What would the January occupancy percentage be if complimentary rooms were excluded?",
+    "outcome": "answered",
+    "prose": "It would be about seventy-one percent, roughly three points below the claim.",
+    "citations": [
+      {
+        "kind": "clause",
+        "clause": "D-OCC-01",
+        "policy_version": "1.3.0"
+      }
+    ]
+  }
+}

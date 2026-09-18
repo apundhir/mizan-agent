@@ -1,0 +1,79 @@
+{
+  "why": "The one in-scope metric with no page anywhere in the system. D-RNA-01 makes rooms available a property attribute rather than a reservation one, so its source is a per-date CSV - and an answer that cites a PDF page for it has invented a page. This is the case `InventoryCitation` exists for: without it the agent could cite only the workbook side of the one finding whose source is not a report.",
+  "input": {
+    "question": "Where did the January rooms available figure come from?",
+    "findings": [
+      {
+        "finding_id": "F-0001",
+        "metric": "room_nights_available",
+        "period": "2026-01",
+        "variance_class": "V1",
+        "claimed": "1860",
+        "computed": "1845",
+        "clause": "D-RNA-01",
+        "source_ref": {
+          "file": "inventory_2026-Q1.csv",
+          "row_start": 1,
+          "row_end": 31
+        },
+        "excel_ref": {
+          "sheet": "Occupancy",
+          "cell": "D5"
+        }
+      }
+    ]
+  },
+  "expect": {
+    "echoes_question": "Where did the January rooms available figure come from?",
+    "declines": false,
+    "cites_at_least": 1,
+    "citation_kinds": [
+      "inventory"
+    ],
+    "cites": [
+      "inventory_2026-Q1.csv rows 1-31"
+    ],
+    "answer_states_no_number": [
+      "2026-01",
+      "31"
+    ]
+  },
+  "expect_example": {
+    "question": "Where did the January rooms available figure come from?",
+    "outcome": "answered",
+    "prose": "F-0001 was checked against the room inventory reference for the quarter, not against the reservation report - rooms available is a property attribute and does not appear in a reservation export (D-RNA-01). The claim itself was read from the workbook's Occupancy sheet.",
+    "citations": [
+      {
+        "kind": "inventory",
+        "ref": {
+          "file": "inventory_2026-Q1.csv",
+          "row_start": 1,
+          "row_end": 31
+        }
+      },
+      {
+        "kind": "excel",
+        "ref": {
+          "sheet": "Occupancy",
+          "cell": "D5"
+        }
+      }
+    ]
+  },
+  "counterexample": {
+    "question": "Where did the January rooms available figure come from?",
+    "outcome": "answered",
+    "prose": "It came from page 1 of the January report, rows 1 to 31.",
+    "citations": [
+      {
+        "kind": "pdf",
+        "ref": {
+          "file": "pms_2026-01.pdf",
+          "page": 1,
+          "row_start": 1,
+          "row_end": 31
+        }
+      }
+    ]
+  }
+}

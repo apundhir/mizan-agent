@@ -1,0 +1,36 @@
+{
+  "why": "A clerical finding may say plainly that a figure does not reconcile - that is its job - and must still contain no figure, because every number in the report is rendered from what code computed.",
+  "input": {
+    "finding_id": "F-0001",
+    "metric": "occupancy_pct",
+    "period": "2026-01",
+    "variance_class": "V1",
+    "explaining_permutation": null,
+    "claimed": "71.40",
+    "computed": "68.20",
+    "clause": "D-OCC-01"
+  },
+  "expect": {
+    "finding_id": "F-0001",
+    "cites_permutation": null,
+    "is_definitional": false,
+    "sentence_states_no_number": [
+      "2026-01"
+    ],
+    "sentence_mentions": [
+      "january"
+    ]
+  },
+  "expect_example": {
+    "finding_id": "F-0001",
+    "sentence": "The January occupancy figure in the workbook does not reconcile with the occupancy recomputed from the reservation rows for that month.",
+    "cites_permutation": null,
+    "is_definitional": false
+  },
+  "counterexample": {
+    "finding_id": "F-0001",
+    "sentence": "The January occupancy figure is three points higher than the recomputed value, which suggests the front office rounded up.",
+    "cites_permutation": null,
+    "is_definitional": false
+  }
+}

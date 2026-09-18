@@ -1,0 +1,66 @@
+{
+  "why": "Every sheet must be mapped, in scope or out of it. Leaving the rate-and-revenue sheet out is reported as a gap for a human, which wastes their time on a decision policy has already made - out of scope is a decision, not a gap (D-SCOPE-02). The out-of-scope metrics are the three rows the 'Rate & Revenue' sheet actually carries: average daily rate, RevPAR and average length of stay. This case listed `revenue` instead until the first real recording disagreed with it - `policy.yaml` has both names in its out-of-scope vocabulary and the workbook has only one of them, so a hand-written expectation could name the wrong one and look right.",
+  "input": {
+    "workbook": "corpus/demo/submission/claims_2026-Q1.xlsx"
+  },
+  "expect": {
+    "unmapped": 0,
+    "metrics_mapped": [
+      "occupancy_pct",
+      "room_nights_sold",
+      "room_nights_available",
+      "guests_by_nationality",
+      "average_daily_rate",
+      "revpar",
+      "average_length_of_stay"
+    ]
+  },
+  "expect_example": {
+    "blocks": [
+      {
+        "metric": "occupancy_pct"
+      },
+      {
+        "metric": "room_nights_sold"
+      },
+      {
+        "metric": "room_nights_available"
+      },
+      {
+        "metric": "guests_by_nationality"
+      },
+      {
+        "metric": "average_daily_rate"
+      },
+      {
+        "metric": "revpar"
+      },
+      {
+        "metric": "average_length_of_stay"
+      }
+    ],
+    "unmapped": []
+  },
+  "counterexample": {
+    "blocks": [
+      {
+        "metric": "occupancy_pct"
+      },
+      {
+        "metric": "room_nights_sold"
+      },
+      {
+        "metric": "room_nights_available"
+      },
+      {
+        "metric": "guests_by_nationality"
+      }
+    ],
+    "unmapped": [
+      {
+        "sheet": "Rate & Revenue",
+        "reason": "rate measures, unclear"
+      }
+    ]
+  }
+}

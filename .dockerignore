@@ -1,0 +1,27 @@
+# Everything, then the handful of paths the build actually reads. An allowlist rather than a
+# denylist: the failure mode of a denylist here is a secret or a 2GB cache entering the context
+# because nobody remembered to add a line for it.
+*
+!pyproject.toml
+!policy.yaml
+!policy.schema.json
+!src/
+!docs/
+!corpus/
+!tools/
+
+# `tests/` is excluded above and stays excluded, with one exception. Replay is the only provider
+# this image can use and it reads `tests/cassettes/`, so the cassettes are runtime data that
+# happens to live under a test directory. Nothing else from `tests/` is in the image.
+!tests/cassettes/
+
+# Re-excluded inside the allowed trees. Generated or machine-local, and `corpus/fixtures/` in
+# particular is regenerated rather than committed.
+**/__pycache__/
+**/*.py[cod]
+**/.DS_Store
+corpus/fixtures/
+
+# Never, under any allowlist. A key in the build context is a key in the image history.
+**/.env
+**/.env.*

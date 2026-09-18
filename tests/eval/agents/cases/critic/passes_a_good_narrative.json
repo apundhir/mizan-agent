@@ -1,0 +1,38 @@
+{
+  "why": "A critic that fails everything is as useless as one that passes everything, and it is the easier mistake to make when the prompt lists four failure modes. Two of six eval fixtures find nothing for the same reason.",
+  "input": {
+    "finding_id": "F-0007",
+    "metric": "occupancy_pct",
+    "period": "2026-02",
+    "variance_class": "V2",
+    "explaining_permutation": "P-COMP-EXCLUDED",
+    "sentence": "The February occupancy figures differ because the hotel's count includes complimentary rooms and ours excludes them; both are internally consistent.",
+    "claimed": "74.80",
+    "computed": "71.20",
+    "clause": "D-OCC-01"
+  },
+  "expect": {
+    "finding_id": "F-0007",
+    "grounded": true,
+    "leaks_a_number": false,
+    "names_an_unassigned_cause": false,
+    "reads_as_an_accusation": false,
+    "verdict_passes": true
+  },
+  "expect_example": {
+    "finding_id": "F-0007",
+    "grounded": true,
+    "leaks_a_number": false,
+    "names_an_unassigned_cause": false,
+    "reads_as_an_accusation": false,
+    "reason": "States the definitional difference in neutral terms, names the assigned cause in words rather than by id, and states no magnitude."
+  },
+  "counterexample": {
+    "finding_id": "F-0007",
+    "grounded": false,
+    "leaks_a_number": false,
+    "names_an_unassigned_cause": true,
+    "reads_as_an_accusation": false,
+    "reason": "Mentions complimentary rooms."
+  }
+}

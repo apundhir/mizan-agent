@@ -1,0 +1,38 @@
+{
+  "why": "A sentence that reads well and attributes the difference to something the classifier did not assign. The figures survive review and the explanation does not.",
+  "input": {
+    "finding_id": "F-0012",
+    "metric": "room_nights_sold",
+    "period": "2026-03",
+    "variance_class": "V1",
+    "explaining_permutation": null,
+    "sentence": "The March room nights differ because complimentary rooms were counted, a common cause of this kind of gap.",
+    "claimed": "1265",
+    "computed": "1299",
+    "clause": "D-RNS-01"
+  },
+  "expect": {
+    "finding_id": "F-0012",
+    "names_an_unassigned_cause": true,
+    "verdict_passes": false,
+    "reason_mentions": [
+      "complimentary"
+    ]
+  },
+  "expect_example": {
+    "finding_id": "F-0012",
+    "grounded": false,
+    "leaks_a_number": false,
+    "names_an_unassigned_cause": true,
+    "reads_as_an_accusation": false,
+    "reason": "The finding assigns no permutation, and the sentence attributes the gap to complimentary rooms - a cause nobody found."
+  },
+  "counterexample": {
+    "finding_id": "F-0012",
+    "grounded": true,
+    "leaks_a_number": false,
+    "names_an_unassigned_cause": false,
+    "reads_as_an_accusation": false,
+    "reason": "A reasonable explanation."
+  }
+}

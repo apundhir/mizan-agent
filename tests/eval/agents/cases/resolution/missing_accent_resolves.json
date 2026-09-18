@@ -1,0 +1,25 @@
+{
+  "why": "A label the lookup does not contain because an accent was stripped in export. This is the case the agent earns its place on: a human would spend a minute on it and the agent turns that into a confirmation.",
+  "input": {
+    "raw_label": "Cote dIvoir"
+  },
+  "expect": {
+    "abstains": false,
+    "iso_alpha2": "CI",
+    "reason_mentions": [
+      "ivoire"
+    ]
+  },
+  "expect_example": {
+    "raw_label": "Cote dIvoir",
+    "outcome": "resolved",
+    "iso_alpha2": "CI",
+    "matched_candidate": "cote divoire",
+    "reason": "The label is Cote d'Ivoire with the accent stripped and the trailing e dropped."
+  },
+  "counterexample": {
+    "raw_label": "Cote dIvoir",
+    "outcome": "abstained",
+    "reason": "Not sure."
+  }
+}

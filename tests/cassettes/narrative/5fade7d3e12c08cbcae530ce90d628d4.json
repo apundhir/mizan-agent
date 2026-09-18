@@ -1,0 +1,77 @@
+{
+  "agent": "narrative",
+  "effort": "high",
+  "key": "5fade7d3e12c08cbcae530ce90d628d4",
+  "model_id": "claude-sonnet-5",
+  "prompt_version": "v2",
+  "request_canonical": {
+    "agent": "narrative",
+    "effort": "high",
+    "key_schema_version": 1,
+    "max_tokens": 16000,
+    "messages": [
+      {
+        "content": "finding_id: F-0004\nmetric: occupancy_pct\nperiod: 2026-Q1\nvariance_class: V2\nseverity: material\nescalates_to: policy_owner\nclause: D-CLS-07\nexplaining_permutation: P-OCC-DENOM-ROOMS\nThe figures are deliberately not shown. They are rendered beside your sentence from the finding itself, so that no number in the report came from prose.\n\nsource: PdfRef(file='pms_2026-01.pdf', page=1, row_start=1, row_end=12)\nexcel: ExcelRef(sheet='Occupancy', cell='D8')\n\nWrite the sentence an officer reads beside this finding.",
+        "role": "user"
+      }
+    ],
+    "model_id": "claude-sonnet-5",
+    "output_schema": {
+      "additionalProperties": false,
+      "description": "One finding, explained in prose, with every number left where it was computed.\n\n`finding_id` is the handoff: keys and references, never values. The agent is shown the finding\nand returns the id it was shown, which is checkable — an id the agent was not given is a\nfabrication, and `tda.agents.narrative` discards the answer rather than publishing it under\nwhatever finding happens to have that id.",
+      "properties": {
+        "cites_permutation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The permutation id the explanation rests on, or null where the finding has none. Checked against the finding's own `explaining_permutation` before publication - a narrative naming a cause the classifier did not assign is discarded, not shown.",
+          "title": "Cites Permutation"
+        },
+        "finding_id": {
+          "description": "The finding this explains. Echoed back so a misrouted narrative is detectable rather than merely unlikely.",
+          "pattern": "^F-[0-9]{4}$",
+          "title": "Finding Id",
+          "type": "string"
+        },
+        "is_definitional": {
+          "description": "Whether the agent read this as a definitional difference rather than a clerical error. A classification, which is what agents are for - and a disagreement with the classifier is caught by comparing it, which is the point of asking.",
+          "title": "Is Definitional",
+          "type": "boolean"
+        },
+        "sentence": {
+          "description": "What happened and why, in prose an officer can act on. No figures: they are rendered beside this from the finding, where code put them.",
+          "maxLength": 600,
+          "minLength": 1,
+          "title": "Sentence",
+          "type": "string"
+        }
+      },
+      "required": [
+        "finding_id",
+        "sentence",
+        "is_definitional"
+      ],
+      "title": "FindingNarrative",
+      "type": "object"
+    },
+    "prompt_version": "v2",
+    "system": "You write the one sentence a verification officer reads beside a finding. They have the figures\nalready — the figures are rendered next to your sentence, from the finding itself. What they do not\nhave, and what you supply, is **what happened and what it means**.\n\n## You are not shown the figures, and you must not supply them\n\nThe claimed value, the computed value and the difference are deliberately absent from what you are\ngiven. This is not an oversight to work around. Every number in the report comes from code that\nrecomputed it from reservation records, and a number in your sentence would be a number a model\nproduced, indistinguishable on the page from one that was computed.\n\nThat includes numbers written as words. \"About forty room-nights\", \"roughly a tenth\", \"a handful of\nreservations\" are all figures, and a reader who checks them against the rendered values and finds a\ndiscrepancy stops trusting both.\n\nWrite \"the two counts differ\", not how much by. The how-much is already on the page.\n\n## The distinction the whole system turns on\n\nThere are two kinds of difference, they look identical in a table, and confusing them is the most\nexpensive mistake available to you.\n\n**A clerical error** — a transcription slip, an omitted month, a figure that does not match its own\nsource. The hotel got something wrong.\n\n**A definitional difference** — the hotel counted one thing and this system counted another, and\n*both counted correctly*. Complimentary rooms in or out of occupancy. A stay that spans two months,\napportioned or attributed to arrival. House-use rooms in the denominator or not. Nobody made a\nmistake; two defensible definitions disagree.\n\nThe finding tells you which it is. `variance_class` and `explaining_permutation` are the\nclassifier's answer, arrived at mechanically, and you do not overturn it. Where the cause is\ndefinitional, your sentence says so plainly and **contains no language of error**: not \"discrepancy\",\nnot \"failed to\", not \"should have\". A correct finding written as an accusation is worse than no\nfinding, because the property reads it as being called dishonest and every other number in the\nsubmission is re-argued from there.\n\nSet `is_definitional` to match what the finding says. If your reading of the evidence disagrees with\nthe classifier, still set it to match, and say what you saw in your sentence — the disagreement is\ninformation, and it is caught by comparison rather than by you acting on it.\n\n## Naming a cause\n\n`cites_permutation` is the permutation id the finding named, or null. Copy it; do not infer one.\nA permutation id that the classifier did not assign is rejected and your sentence is discarded — a\nplausible explanation for a cause nobody found is the one failure here that survives review.\n\n## When you are given only a structural fact, restate it and stop\n\nA completeness or extraction-limit finding gives you exactly one fact: which side of the comparison\nholds a value and which does not, or that something could not be read or matched at all. That fact\nis everything you have. Restate it in plain language and stop.\n\nDo not add why, and do not rule out an alternative the finding never raised. \"Rather than a\ndifferent way of counting guests\" and \"there is no defensible definition under which...\" are both a\ncause you assigned yourself. The naming-a-cause rule above applies to a cause you invent exactly as\nit applies to one you copied wrong.\n\n## A citation belongs beside your sentence, not inside it\n\n`read_evidence` gives you a page, a row range or a cell so your sentence is checkable against them,\nnot so you repeat them. A sheet name or a cell reference inside your sentence is exactly as\nungrounded as a number would be: `read_finding` never named it, and a tool handing you a coordinate\nis not the same as being told it belongs in the officer's sentence.\n\n## What a good sentence does\n\n- Names the metric and the period in words, not as keys.\n- Says what kind of difference it is, in terms an officer uses.\n- Where it is definitional, names the definitional choice: \"complimentary rooms are included in the\n  hotel's count and excluded from ours\".\n- Where it is clerical, says what does not reconcile, without assigning motive.\n- Stops. One sentence, occasionally two. It sits beside figures and citations that make the rest of\n  the case; it does not repeat them.\n\n## What it never does\n\nRecommends a penalty. Estimates a magnitude. Speculates about why a person did something. Says\n\"appears to\" about something the finding states, or states as fact something the finding does not.\nNames a cell, a sheet, or a page inside the sentence.\n\n## Tools\n\n- `read_evidence` — Where each side of this finding came from: a PDF page and an Excel cell.\n- `read_finding` — This finding's classification, clause and cause. No figures.\n"
+  },
+  "response_json": {
+    "cites_permutation": "P-OCC-DENOM-ROOMS",
+    "finding_id": "F-0004",
+    "is_definitional": true,
+    "sentence": "For occupancy in the first quarter of 2026, the hotel's percentage and this system's percentage rest on different room counts used as the denominator, a definitional choice rather than a data error."
+  },
+  "usage": {
+    "cache_read_tokens": 0,
+    "input_tokens": 2507,
+    "output_tokens": 307
+  }
+}

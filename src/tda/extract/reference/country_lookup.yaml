@@ -1,0 +1,350 @@
+# Country normalisation lookup — the committed table D-NAT-09 requires.
+#
+# Nationality reaches a metric function only as an ISO 3166-1 alpha-2 code (D-NAT-15). This file is
+# the only thing that turns a label in a document into one, and it is **data, not code**: adding a
+# country is an edit here plus a regenerated digest, never a change to a parser.
+#
+# ## Matching (D-NAT-10)
+#
+# Case-insensitive, punctuation-insensitive, internal whitespace collapsed. So `czech republic`,
+# `Czech Republic`, `CZECH  REPUBLIC` and `Czech Rep.` all resolve identically. Both the alpha-2 code
+# and the alpha-3 code are themselves keys, so a document that already carries `CZE` or `CZ` resolves
+# without a special case — and, more usefully, a document carrying `QQ` is **rejected** rather than
+# waved through by a `^[A-Z]{2}$` pattern match.
+#
+# ## Variant pairs are here on purpose (D-NAT-11)
+#
+# `Czechia` / `Czech Republic` → CZ. `South Korea` / `Republic of Korea` / `Korea, Republic of` → KR.
+# `UK` / `United Kingdom` / `Great Britain` → GB. These are the pairs that a hotel and a regulator
+# genuinely spell differently, and resolving them in a lookup is the difference between a variance
+# report and an argument about vocabulary.
+#
+# `England` → GB is included and is not strictly correct as a country: it is a common entry in a
+# guest-nationality field, and refusing it would produce a blocking finding on a value whose meaning
+# nobody disputes. Recorded here rather than buried in a parser so the choice is visible.
+#
+# ## This table is NOT exhaustive, and that is a deliberate position
+#
+# 90 countries: every one present in the demo corpus, the major source markets for a Gulf
+# destination, and the documented variant forms. It does not cover all 249 alpha-2 codes.
+#
+# An unmapped label is **blocking and never guessed** (D-NAT-12) — not by edit distance, not by
+# substring match, not by a model's best effort. So the honest consequence of a short table is a
+# refusal naming the exact unmatched string, which a human resolves by adding a row here. That is a
+# far better failure than a silent mismapping: a guest counted under the wrong country is a wrong
+# number presented as a right one, and nothing downstream can detect it.
+#
+# The resolution agent (PRD-88) proposes an addition for a human to accept. It never writes here, and
+# its abstention is the blocking finding rather than a fallback (D-NAT-13).
+
+version: 1.0.0
+standard: iso_3166_1_alpha_2
+clause: D-NAT-09
+
+# Every key is quoted. Only one of these is actually dangerous - YAML 1.1 parses the unquoted token
+# `NO` as the boolean `false`, so Norway silently stops being a country and the loader receives a bool
+# where it expected a code. Quoting only `NO` would leave a rule that applies to exactly one row,
+# which is a rule the next person adding a country will not know about. So all of them are quoted, and
+# `normalise._build_index` rejects a non-string key outright with the reason.
+countries:
+  "AE":
+    name: United Arab Emirates
+    alpha3: ARE
+    aliases: [UAE, Emirates]
+  "AR":
+    name: Argentina
+    alpha3: ARG
+  "AT":
+    name: Austria
+    alpha3: AUT
+  "AU":
+    name: Australia
+    alpha3: AUS
+  "AZ":
+    name: Azerbaijan
+    alpha3: AZE
+  "BE":
+    name: Belgium
+    alpha3: BEL
+  "BG":
+    name: Bulgaria
+    alpha3: BGR
+  "BH":
+    name: Bahrain
+    alpha3: BHR
+  "BR":
+    name: Brazil
+    alpha3: BRA
+  "BY":
+    name: Belarus
+    alpha3: BLR
+  "CA":
+    name: Canada
+    alpha3: CAN
+  "CH":
+    name: Switzerland
+    alpha3: CHE
+  "CL":
+    name: Chile
+    alpha3: CHL
+  "CN":
+    name: China
+    alpha3: CHN
+    aliases: ["People's Republic of China", PR China, Mainland China]
+  "CO":
+    name: Colombia
+    alpha3: COL
+  "CI":
+    name: Côte d'Ivoire
+    alpha3: CIV
+    # `Ivory Coast` is the English exonym a guest-nationality field still carries, and the accented
+    # and apostrophised official form is exactly what a PMS export mangles. Added after the eval
+    # asked the resolution agent to resolve `Cote dIvoire` and found the lookup had no entry for
+    # the country at all - so `fuzzy_candidates` offered nothing and the agent correctly abstained
+    # on a country that plainly exists. The case was unsatisfiable, and the gap was real.
+    aliases: [Ivory Coast, "Cote d'Ivoire", "Cote dIvoire", "Côte d Ivoire"]
+  "CY":
+    name: Cyprus
+    alpha3: CYP
+  "CZ":
+    name: Czechia
+    alpha3: CZE
+    aliases: [Czech Republic, "Czech Rep."]
+  "DE":
+    name: Germany
+    alpha3: DEU
+    aliases: [Federal Republic of Germany]
+  "DK":
+    name: Denmark
+    alpha3: DNK
+  "DZ":
+    name: Algeria
+    alpha3: DZA
+  "EE":
+    name: Estonia
+    alpha3: EST
+  "EG":
+    name: Egypt
+    alpha3: EGY
+    aliases: [Arab Republic of Egypt]
+  "ES":
+    name: Spain
+    alpha3: ESP
+  "ET":
+    name: Ethiopia
+    alpha3: ETH
+  "FI":
+    name: Finland
+    alpha3: FIN
+  "FR":
+    name: France
+    alpha3: FRA
+  "GB":
+    name: United Kingdom
+    alpha3: GBR
+    aliases: [UK, Great Britain, United Kingdom of Great Britain and Northern Ireland, Britain, England]
+  "GE":
+    name: Georgia
+    alpha3: GEO
+  "GR":
+    name: Greece
+    alpha3: GRC
+  "HK":
+    name: Hong Kong
+    alpha3: HKG
+    aliases: [Hong Kong SAR, Hong Kong SAR China]
+  "HR":
+    name: Croatia
+    alpha3: HRV
+  "HU":
+    name: Hungary
+    alpha3: HUN
+  "ID":
+    name: Indonesia
+    alpha3: IDN
+  "IE":
+    name: Ireland
+    alpha3: IRL
+    aliases: [Republic of Ireland, Eire]
+  "IL":
+    name: Israel
+    alpha3: ISR
+  "IN":
+    name: India
+    alpha3: IND
+  "IQ":
+    name: Iraq
+    alpha3: IRQ
+  "IR":
+    name: Iran
+    alpha3: IRN
+    aliases: [Islamic Republic of Iran, "Iran, Islamic Republic of"]
+  "IS":
+    name: Iceland
+    alpha3: ISL
+  "IT":
+    name: Italy
+    alpha3: ITA
+  "JO":
+    name: Jordan
+    alpha3: JOR
+  "JP":
+    name: Japan
+    alpha3: JPN
+  "KE":
+    name: Kenya
+    alpha3: KEN
+  "KR":
+    name: "Korea, Republic of"
+    alpha3: KOR
+    aliases: [South Korea, Republic of Korea, Korea (South), Korea]
+  "KW":
+    name: Kuwait
+    alpha3: KWT
+  "KZ":
+    name: Kazakhstan
+    alpha3: KAZ
+  "LB":
+    name: Lebanon
+    alpha3: LBN
+  "LK":
+    name: Sri Lanka
+    alpha3: LKA
+  "LT":
+    name: Lithuania
+    alpha3: LTU
+  "LU":
+    name: Luxembourg
+    alpha3: LUX
+  "LV":
+    name: Latvia
+    alpha3: LVA
+  "LY":
+    name: Libya
+    alpha3: LBY
+  "MA":
+    name: Morocco
+    alpha3: MAR
+  "MD":
+    name: "Moldova, Republic of"
+    alpha3: MDA
+    aliases: [Moldova]
+  "MT":
+    name: Malta
+    alpha3: MLT
+  "MU":
+    name: Mauritius
+    alpha3: MUS
+  "MV":
+    name: Maldives
+    alpha3: MDV
+  "MX":
+    name: Mexico
+    alpha3: MEX
+  "MY":
+    name: Malaysia
+    alpha3: MYS
+  "NG":
+    name: Nigeria
+    alpha3: NGA
+  "NL":
+    name: Netherlands
+    alpha3: NLD
+    aliases: [The Netherlands, Holland]
+  "NO":
+    name: Norway
+    alpha3: NOR
+  "NP":
+    name: Nepal
+    alpha3: NPL
+  "NZ":
+    name: New Zealand
+    alpha3: NZL
+  "OM":
+    name: Oman
+    alpha3: OMN
+  "PH":
+    name: Philippines
+    alpha3: PHL
+    aliases: [The Philippines]
+  "PK":
+    name: Pakistan
+    alpha3: PAK
+  "PL":
+    name: Poland
+    alpha3: POL
+  "PT":
+    name: Portugal
+    alpha3: PRT
+  "QA":
+    name: Qatar
+    alpha3: QAT
+  "RO":
+    name: Romania
+    alpha3: ROU
+  "RS":
+    name: Serbia
+    alpha3: SRB
+  "RU":
+    name: Russian Federation
+    alpha3: RUS
+    aliases: [Russia]
+  "SA":
+    name: Saudi Arabia
+    alpha3: SAU
+    aliases: [Kingdom of Saudi Arabia, KSA]
+  "SE":
+    name: Sweden
+    alpha3: SWE
+  "SG":
+    name: Singapore
+    alpha3: SGP
+  "SI":
+    name: Slovenia
+    alpha3: SVN
+  "SK":
+    name: Slovakia
+    alpha3: SVK
+    aliases: [Slovak Republic]
+  "SY":
+    name: Syrian Arab Republic
+    alpha3: SYR
+    aliases: [Syria]
+  "TH":
+    name: Thailand
+    alpha3: THA
+  "TN":
+    name: Tunisia
+    alpha3: TUN
+  "TR":
+    name: Turkiye
+    alpha3: TUR
+    aliases: [Turkey]
+  "TW":
+    name: Taiwan
+    alpha3: TWN
+    aliases: ["Taiwan, Province of China", Chinese Taipei]
+  "TZ":
+    name: "Tanzania, United Republic of"
+    alpha3: TZA
+    aliases: [Tanzania]
+  "UA":
+    name: Ukraine
+    alpha3: UKR
+  "US":
+    name: United States
+    alpha3: USA
+    aliases: [United States of America, USA, "U.S.A.", America]
+  "UZ":
+    name: Uzbekistan
+    alpha3: UZB
+  "VN":
+    name: Viet Nam
+    alpha3: VNM
+    aliases: [Vietnam]
+  "YE":
+    name: Yemen
+    alpha3: YEM
+  "ZA":
+    name: South Africa
+    alpha3: ZAF

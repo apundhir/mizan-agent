@@ -1,0 +1,38 @@
+{
+  "why": "The critic exists for this case. A definitional finding narrated as a clerical error reads well, passes every numeric check, and is the single most expensive thing this system can put in front of a hotel.",
+  "input": {
+    "finding_id": "F-0007",
+    "metric": "occupancy_pct",
+    "period": "2026-02",
+    "variance_class": "V2",
+    "explaining_permutation": "P-COMP-EXCLUDED",
+    "sentence": "The hotel overstated February occupancy by including complimentary rooms it should have excluded.",
+    "claimed": "74.80",
+    "computed": "71.20",
+    "clause": "D-OCC-01"
+  },
+  "expect": {
+    "finding_id": "F-0007",
+    "reads_as_an_accusation": true,
+    "verdict_passes": false,
+    "reason_mentions": [
+      "overstated"
+    ]
+  },
+  "expect_example": {
+    "finding_id": "F-0007",
+    "grounded": true,
+    "leaks_a_number": false,
+    "names_an_unassigned_cause": false,
+    "reads_as_an_accusation": true,
+    "reason": "The sentence says 'overstated' and 'should have excluded' about a variance the classifier called definitional, which reads as blame for a defensible choice."
+  },
+  "counterexample": {
+    "finding_id": "F-0007",
+    "grounded": true,
+    "leaks_a_number": false,
+    "names_an_unassigned_cause": false,
+    "reads_as_an_accusation": false,
+    "reason": "Reads fine."
+  }
+}

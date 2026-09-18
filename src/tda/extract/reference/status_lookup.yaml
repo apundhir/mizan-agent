@@ -1,0 +1,46 @@
+# Reservation status normalisation — the committed table D-QUAL-03 requires.
+#
+# `Status` is a closed enum of four values. A PMS export writes them a dozen ways, and every one of
+# those ways has to be listed here or rejected. **Never coerced, never similarity-matched, never
+# treated as CHECKED_OUT** because it looks close enough.
+#
+# ## Why this matters more than the country lookup
+#
+# A mismapped country moves a guest between two rows of the nationality table. A mismapped status
+# moves a reservation in or out of the **qualifying set**, which changes occupancy, room-nights and
+# every nationality figure at once (D-QUAL-01). And the specific failure is asymmetric: guessing that
+# an unrecognised status means CHECKED_OUT inflates occupancy, which looks like a busy hotel rather
+# than a bug. So an unknown status is blocking, and the variants below are the ones in documented use
+# rather than every string somebody might plausibly type.
+#
+# ## Matching
+#
+# Case-insensitive, punctuation-insensitive, internal whitespace collapsed — the same rule as the
+# country lookup (D-NAT-10), so `Checked Out`, `checked-out`, `CHECKED_OUT` and `C/O` all resolve.
+#
+# ## The two that are deliberately absent
+#
+# `NO_SHOW` and `CANCELLED` are both **excluded** from the qualifying set, so it is tempting to
+# collapse them into one value. They are kept distinct because the monthly report prints the exclusion
+# counts separately and the totals reconciliation checks against those printed counts — collapsing
+# them would make that check unable to tell a report that miscounted no-shows from one that
+# miscounted cancellations.
+#
+# `RESERVED` / `CONFIRMED` / `DUE_IN` are **not listed**, and that is a decision rather than an
+# omission. A future arrival has occupied nothing, so it belongs in neither the included nor the
+# excluded set — it should not appear in a report for a completed period at all. Listing it as
+# excluded would make its presence invisible; leaving it unlisted makes it blocking, which is the
+# right answer for a row that should not be in the document.
+
+version: 1.0.0
+clause: D-QUAL-03
+
+statuses:
+  CHECKED_OUT:
+    aliases: ["Checked Out", "Checked-Out", "CheckedOut", "CO", "C/O", "Departed", "Checked out"]
+  IN_HOUSE:
+    aliases: ["In House", "In-House", "InHouse", "IH", "Resident", "Staying"]
+  CANCELLED:
+    aliases: [Cancelled, Canceled, Cancellation, CXL, CNCL, "Cancelled by guest"]
+  NO_SHOW:
+    aliases: ["No Show", "No-Show", NoShow, NS, "Did not arrive"]

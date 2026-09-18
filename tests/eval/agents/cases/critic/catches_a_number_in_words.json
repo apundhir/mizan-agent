@@ -1,0 +1,38 @@
+{
+  "why": "The narrative agent is shown no figures, so any figure it produces is invented. Digits are the easy case; a magnitude written in words reads as prose and is the one that gets through.",
+  "input": {
+    "finding_id": "F-0001",
+    "metric": "occupancy_pct",
+    "period": "2026-01",
+    "variance_class": "V1",
+    "explaining_permutation": null,
+    "sentence": "The January occupancy figure is roughly a tenth higher than the recomputed value.",
+    "claimed": "71.40",
+    "computed": "68.20",
+    "clause": "D-OCC-01"
+  },
+  "expect": {
+    "finding_id": "F-0001",
+    "leaks_a_number": true,
+    "verdict_passes": false,
+    "reason_mentions": [
+      "tenth"
+    ]
+  },
+  "expect_example": {
+    "finding_id": "F-0001",
+    "grounded": false,
+    "leaks_a_number": true,
+    "names_an_unassigned_cause": false,
+    "reads_as_an_accusation": false,
+    "reason": "'roughly a tenth' is a magnitude, and the narrative agent was shown no figures from which to derive one."
+  },
+  "counterexample": {
+    "finding_id": "F-0001",
+    "grounded": true,
+    "leaks_a_number": false,
+    "names_an_unassigned_cause": false,
+    "reads_as_an_accusation": false,
+    "reason": "No digits appear in the sentence."
+  }
+}

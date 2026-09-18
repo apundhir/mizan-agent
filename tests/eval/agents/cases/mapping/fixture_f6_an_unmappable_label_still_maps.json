@@ -1,0 +1,43 @@
+{
+  "why": "F6 (PRD-94) prints Freedonia in the Nationality sheet, a label the committed lookup has never seen. Resolving that label is tda.excel.read's job, deterministic and downstream of mapping - the mapping agent only has to say which range holds which metric, and an unresolvable country name inside a block it can already see does not change that answer. The mapping outcome must be identical to the clean demo case; the blocking refusal this fixture exists to demonstrate happens one stage later, in tda.excel.run, and never reaches this agent at all.",
+  "input": {
+    "workbook": "corpus/fixtures/F6/submission/claims_2026-Q1.xlsx"
+  },
+  "expect": {
+    "unmapped": 0,
+    "metrics_mapped": [
+      "occupancy_pct",
+      "room_nights_sold",
+      "room_nights_available",
+      "guests_by_nationality",
+      "average_daily_rate",
+      "revpar",
+      "average_length_of_stay"
+    ]
+  },
+  "expect_example": {
+    "blocks": [
+      { "metric": "occupancy_pct" },
+      { "metric": "room_nights_sold" },
+      { "metric": "room_nights_available" },
+      { "metric": "guests_by_nationality" },
+      { "metric": "average_daily_rate" },
+      { "metric": "revpar" },
+      { "metric": "average_length_of_stay" }
+    ],
+    "unmapped": []
+  },
+  "counterexample": {
+    "blocks": [
+      { "metric": "occupancy_pct" },
+      { "metric": "room_nights_sold" },
+      { "metric": "room_nights_available" }
+    ],
+    "unmapped": [
+      {
+        "sheet": "Nationality",
+        "reason": "a country label I could not place, so I declined to map the sheet at all"
+      }
+    ]
+  }
+}

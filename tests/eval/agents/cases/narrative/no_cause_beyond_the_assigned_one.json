@@ -1,0 +1,38 @@
+{
+  "why": "A plausible sentence naming a cause nobody found is the one failure that survives review: the figures check out and the explanation does not. Where the classifier assigned no permutation, the narrative names none.",
+  "input": {
+    "finding_id": "F-0012",
+    "metric": "room_nights_sold",
+    "period": "2026-03",
+    "variance_class": "V1",
+    "explaining_permutation": null,
+    "claimed": "1265",
+    "computed": "1299",
+    "clause": "D-RNS-01"
+  },
+  "expect": {
+    "finding_id": "F-0012",
+    "cites_permutation": null,
+    "is_definitional": false,
+    "sentence_states_no_number": [
+      "2026-03"
+    ],
+    "sentence_avoids": [
+      "month-spanning",
+      "house use",
+      "complimentary"
+    ]
+  },
+  "expect_example": {
+    "finding_id": "F-0012",
+    "sentence": "The room nights reported for March do not match the total recomputed from the reservation rows, and no definitional rule in the policy reproduces the reported figure.",
+    "cites_permutation": null,
+    "is_definitional": false
+  },
+  "counterexample": {
+    "finding_id": "F-0012",
+    "sentence": "The March room nights differ because complimentary rooms were counted, a common cause of this kind of gap.",
+    "cites_permutation": null,
+    "is_definitional": false
+  }
+}

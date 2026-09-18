@@ -1,0 +1,83 @@
+{
+  "agent": "critic",
+  "effort": "high",
+  "key": "5b390f13503a51625809f174fb0fcdf5",
+  "model_id": "claude-sonnet-5",
+  "prompt_version": "v1",
+  "request_canonical": {
+    "agent": "critic",
+    "effort": "high",
+    "key_schema_version": 1,
+    "max_tokens": 16000,
+    "messages": [
+      {
+        "content": "# the finding, exactly as the narrative agent was shown it\n\nfinding_id: F-0007\nmetric: occupancy_pct\nperiod: 2026-02\nvariance_class: V2\nseverity: material\nescalates_to: policy_owner\nclause: D-OCC-01\nexplaining_permutation: P-COMP-EXCLUDED\nThe figures are deliberately not shown. They are rendered beside your sentence from the finding itself, so that no number in the report came from prose.\n\n# the sentence it wrote\n\nThe hotel overstated February occupancy by including complimentary rooms it should have excluded.\n\n# it declared this finding definitional: True\n\n# it cited permutation: P-COMP-EXCLUDED\n\nAnswer the four questions about this sentence.",
+        "role": "user"
+      }
+    ],
+    "model_id": "claude-sonnet-5",
+    "output_schema": {
+      "additionalProperties": false,
+      "description": "One narrative, graded against the finding it claims to explain.",
+      "properties": {
+        "finding_id": {
+          "description": "The finding whose narrative was graded. Echoed back so a verdict filed against the wrong narrative is detectable.",
+          "pattern": "^F-[0-9]{4}$",
+          "title": "Finding Id",
+          "type": "string"
+        },
+        "grounded": {
+          "description": "Every claim in the sentence is supported by the finding it was shown. False for prose that is plausible but unsupported, which is the common case.",
+          "title": "Grounded",
+          "type": "boolean"
+        },
+        "leaks_a_number": {
+          "description": "The sentence states a figure. The contract cannot carry one as a field, so this catches a number spelled out in words - 'about forty room-nights'.",
+          "title": "Leaks A Number",
+          "type": "boolean"
+        },
+        "names_an_unassigned_cause": {
+          "description": "The sentence names a cause the classifier did not assign to this finding.",
+          "title": "Names An Unassigned Cause",
+          "type": "boolean"
+        },
+        "reads_as_an_accusation": {
+          "description": "The sentence reads as clerical blame where the cause is definitional. The most expensive failure of the four: a correct finding that discredits the system.",
+          "title": "Reads As An Accusation",
+          "type": "boolean"
+        },
+        "reason": {
+          "description": "What the critic saw, in one or two sentences. Read by whoever is deciding whether to change the narrative prompt, so 'fails' is not an answer.",
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "finding_id",
+        "grounded",
+        "leaks_a_number",
+        "names_an_unassigned_cause",
+        "reads_as_an_accusation",
+        "reason"
+      ],
+      "title": "CriticVerdict",
+      "type": "object"
+    },
+    "prompt_version": "v1",
+    "system": "You grade one sentence against the finding it claims to explain. You answer four yes/no questions\nand give a reason. **You do not give a score, and you do not decide pass or fail** — that is\ncomputed from your four answers by code, so that your standards cannot drift at the same time as\nthe thing you are grading.\n\nYou have no tools. You judge exactly the pair in front of you. If the sentence makes a claim you\ncannot check against this finding, that is the answer to question one, not a reason to go looking.\n\n## The four questions\n\n**`grounded`** — is every claim in the sentence supported by the finding as shown?\n\nTrue only if each assertion traces to something in the finding. A sentence that is *plausible*,\n*probably true* or *consistent with* the finding is not grounded; grounded means the support is\nthere. The common failure is fluent prose that adds a detail nobody supplied — a reason the hotel\nmight have made the error, a pattern across periods, a consequence. Those are inventions with good\nmanners.\n\n**`leaks_a_number`** — does the sentence state a figure?\n\nThe narrative agent is shown no figures, so any that appears is invented. Digits are the easy case.\nAlso count: numbers as words (\"forty\"), fractions and proportions (\"a tenth\", \"half\"), magnitudes\n(\"a handful\", \"a few dozen\"), and any phrase that would let a reader reconstruct a value. Do not\ncount the period (\"March 2026\") or a metric's name, and do not count a permutation id.\n\n**`names_an_unassigned_cause`** — does the sentence attribute the difference to something other\nthan what the finding assigns?\n\nThe finding names a class and, where there is one, a permutation. A sentence saying complimentary\nrooms explain a variance the classifier attributed to month-spanning apportionment names an\nunassigned cause, even if it reads well. A sentence that describes the assigned cause in plain\nwords rather than by id does not.\n\n**`reads_as_an_accusation`** — where the cause is definitional, does the sentence blame the hotel?\n\nOnly ask this where `variance_class` is definitional. There, both parties counted correctly and\ndisagreed about what to count. Words that assign fault — error, discrepancy, failed, should have,\noverstated, understated, incorrectly — make a correct finding read as a charge, and the property\nanswers the charge instead of the question. Neutral difference language is what passes:\n\"the hotel's count includes X; ours excludes it\".\n\nWhere the cause is clerical, answer false. A clerical finding may say plainly that a figure does not\nreconcile; that is its job.\n\n## Your reason\n\nOne or two sentences on what you saw, written for the person deciding whether to change the\nnarrative prompt. Quote the phrase that decided a `true`. \"Fails\" is not a reason; \"states 'roughly\na tenth', which is a magnitude the narrative agent was not shown\" is.\n\nIf all four answers are the clean ones, say what the sentence does well and specifically — a set of\nfour falses with a reason reading \"fine\" gives whoever is tuning the prompt nothing to keep.\n\n## Grade what was asked, not what you would have written\n\nA shorter sentence than you would have written is not ungrounded. A sentence omitting something you\nfind interesting is not ungrounded. The four questions are the whole of your remit, and a critic\nthat also grades style produces a signal nobody can act on.\n\n## Tools\n\nYou have no tools. Everything you need is in the message.\n"
+  },
+  "response_json": {
+    "finding_id": "F-0007",
+    "grounded": false,
+    "leaks_a_number": false,
+    "names_an_unassigned_cause": false,
+    "reads_as_an_accusation": true,
+    "reason": "The sentence asserts the hotel 'overstated' occupancy and 'should have excluded' complimentary rooms, but the finding only supplies the permutation label P-COMP-EXCLUDED and class V2 - it does not state the direction of the variance, so 'overstated' is an invented detail. Because the variance_class is definitional, the fault language 'overstated' and 'should have excluded' turns a counting-convention difference into an accusation rather than neutral difference language like 'the hotel's count includes complimentary rooms; ours excludes them'. The cause named (complimentary rooms) does match the cited permutation, and no figures are stated."
+  },
+  "usage": {
+    "cache_read_tokens": 0,
+    "input_tokens": 2142,
+    "output_tokens": 817
+  }
+}

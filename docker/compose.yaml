@@ -1,0 +1,56 @@
+# The officer's workflow is two steps against one image: verify a submission, then open the screen
+# on that run. So `cli` and `review` share a build and a set of mounts, and differ only in what
+# they are asked to do.
+#
+#   mkdir -p ../artifacts                                   # see the `artifacts` mount below
+#   APP_UID=$(id -u) APP_GID=$(id -g) docker compose -f docker/compose.yaml build
+#   docker compose -f docker/compose.yaml run --rm cli run   # writes artifacts/<run_id>/
+#   docker compose -f docker/compose.yaml up review          # http://127.0.0.1:8501
+#
+# No API key is passed and none is read. The model layer runs in `replay` against the cassettes
+# baked into the image (policy.yaml `model.provider`), so a cassette miss is a hard error and there
+# is no path to a live call. Nothing here needs `.env`, and `.env` is excluded from the build
+# context so a key cannot reach the image by accident.
+
+name: mizan
+
+x-mizan: &mizan
+  build:
+    context: ..
+    dockerfile: Dockerfile
+    target: runtime
+    args:
+      # Must match the uid that owns the host `artifacts/` directory, or the container cannot write
+      # its run output. Default 1000 is the usual first user on Linux and is what Docker Desktop
+      # maps to on macOS regardless of the host uid.
+      APP_UID: ${APP_UID:-1000}
+      APP_GID: ${APP_GID:-1000}
+  image: mizan:poc
+  init: true
+  volumes:
+    # Read-write, and it has to exist on the host before the first `up`: Docker creates a missing
+    # bind source as root, which an unprivileged container then cannot write into.
+    - ../artifacts:/app/artifacts
+    # Read-only because nothing in the container has any business editing a submission. The mount
+    # shadows the copy baked into the image so a reviewer can drop a new submission directory in on
+    # the host and point `MIZAN_SUBMISSION` at it without rebuilding.
+    - ../corpus:/app/corpus:ro
+  environment:
+    # Empty is falsy to the app, which then picks the most recent run. Set it to review an older one.
+    MIZAN_RUN: ${MIZAN_RUN:-}
+    MIZAN_SUBMISSION: ${MIZAN_SUBMISSION:-/app/corpus/demo/submission}
+
+services:
+  review:
+    <<: *mizan
+    # Loopback only. The screen has no authentication and shows a hotel's submitted figures.
+    ports:
+      - "127.0.0.1:8501:8501"
+
+  # Not started by `docker compose up`, because a one-shot command that exits is not a service.
+  # `docker compose run --rm cli run` / `... cli trace` append their arguments to `mizan`.
+  cli:
+    <<: *mizan
+    profiles: ["cli"]
+    entrypoint: ["mizan"]
+    command: ["--help"]

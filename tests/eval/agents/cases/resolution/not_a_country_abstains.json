@@ -1,0 +1,24 @@
+{
+  "why": "A room type that landed in the nationality column. A model asked for a country given a garbled string will produce a country, and a check that the answer is a valid ISO code passes for every one of them.",
+  "input": {
+    "raw_label": "Deluxe King Non-Smoking"
+  },
+  "expect": {
+    "abstains": true,
+    "reason_mentions": [
+      "room"
+    ]
+  },
+  "expect_example": {
+    "raw_label": "Deluxe King Non-Smoking",
+    "outcome": "abstained",
+    "reason": "This is a room type, not a country; the nationality column appears to have taken a value from the wrong field."
+  },
+  "counterexample": {
+    "raw_label": "Deluxe King Non-Smoking",
+    "outcome": "resolved",
+    "iso_alpha2": "KE",
+    "matched_candidate": "kenya",
+    "reason": "King resembles Kenya."
+  }
+}

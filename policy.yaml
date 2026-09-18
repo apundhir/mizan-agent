@@ -1,0 +1,311 @@
+# Mizan verification policy
+#
+# Every contestable rule lives here, not in code, so a definitional argument is settled by a
+# configuration change and a re-run — never by an edit to a metric function.
+#
+# Clause ids (D-QUAL-01, D-OCC-02, …) refer to docs/01-definitions.md. Ids are stable: a clause is
+# superseded, never renumbered, because tests, findings and the reviewer-assist agent cite them.
+#
+# This file is schema-validated on load against policy.schema.json. Its version is recorded in every
+# run and stamped into every verdict — a number without its ruleset is not defensible.
+#
+# Six of these rules are assumptions, not ratified regulatory rules. Each is marked
+# `assumption: A-nn` and expanded in docs/02-assumption-register.md.
+
+schema_version: 1
+version: 1.3.1
+effective_from: "2026-09-13"   # v1.3.0: the supervisor's per-run model-call budget (PRD-88)
+definitions_doc: docs/01-definitions.md
+assumption_register: docs/02-assumption-register.md
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Period basis
+# ─────────────────────────────────────────────────────────────────────────────
+period:
+  clause: D-SCOPE-03
+  month_basis: calendar          # calendar | fiscal | four_four_five
+  timezone: Asia/Dubai           # UTC+04:00, no daylight saving
+  quarter_definition: calendar   # Q1 = Jan–Mar
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Scope — what is verified, and what is explicitly not
+# ─────────────────────────────────────────────────────────────────────────────
+scope:
+  clause: D-SCOPE-01
+  metrics_in_scope:
+    - occupancy_pct
+    - room_nights_sold
+    - room_nights_available
+    - guests_by_nationality
+  # A workbook claim addressing any of these is recorded as `out_of_scope` in the verdict rather
+  # than silently ignored — silence would be mistaken for approval. Clause D-SCOPE-02.
+  metrics_out_of_scope:
+    - age_band
+    - average_length_of_stay
+    - revenue
+    - average_daily_rate
+    - revpar
+    - destination_fee
+    - tax
+
+# ─────────────────────────────────────────────────────────────────────────────
+# The qualifying set — defined once, so the two metric families cannot drift
+# ─────────────────────────────────────────────────────────────────────────────
+qualifying:
+  status:
+    clause: D-QUAL-01
+    assumption: A-01
+    included: [CHECKED_OUT, IN_HOUSE]
+    excluded: [CANCELLED, NO_SHOW]
+    unknown_value: blocking      # D-QUAL-03 — never coerced, never similarity-matched
+
+  rate_code:
+    clause: D-QUAL-04
+    assumption: A-02
+    # COMP is a genuine guest paying nothing — the room was occupied by a visitor.
+    # HOUSE is the property's own use — staff, maintenance, operations.
+    included: [BAR, CORP, GOV, OTA, GROUP, COMP]
+    excluded: [HOUSE]
+    unknown_value: blocking
+
+  day_use:
+    clause: D-QUAL-08
+    assumption: A-03
+    definition: departure_date == arrival_date   # nights = 0
+    counts_room_nights: false    # D-QUAL-09 — invisible to occupancy
+    counts_guests: true          # D-QUAL-10 — a day-use visitor is a guest of the destination
+
+  duplicate_reservation_id: blocking   # D-QUAL-07 — never de-duplicated
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Metric rules
+# ─────────────────────────────────────────────────────────────────────────────
+metrics:
+  occupancy_pct:
+    clause: D-OCC-01
+    assumption: A-04
+    numerator: room_nights_sold
+    denominator: room_nights_available    # D-OCC-02 — room-NIGHTS, not rooms
+    month_basis: occupied_night           # D-RNS-03
+    room_nights_derivation: nights_times_rooms   # D-RNS-02 — printed value cross-checked, never adopted
+    inventory_reference: required         # D-RNA-04 — never inferred from reservations
+    exclude_out_of_order: true            # D-RNA-03
+    zero_denominator: closed_month        # D-OCC-03 — returns 0.0, not an error
+    presentation_decimal_places: 2        # D-OCC-04
+    rounding: half_up
+    round_only_at_presentation: true
+    cap_at_100: false                     # D-OCC-05
+
+  guests_by_nationality:
+    clause: D-NAT-01
+    assumption: A-06
+    counts: guests                        # guests | arrivals | room_nights
+    guests_derivation: adults_plus_children   # D-NAT-02
+    include_children: true                # D-NAT-03, assumption A-05
+    month_basis: arrival_month            # D-NAT-06, assumption A-04
+    nationality_per: reservation          # D-NAT-05, assumption A-07
+    normalisation:
+      clause: D-NAT-09
+      standard: iso_3166_1_alpha_2
+      lookup: src/tda/extract/reference/country_lookup.yaml
+      case_insensitive: true              # D-NAT-10
+      punctuation_insensitive: true
+      collapse_whitespace: true
+      unmappable_label: blocking          # D-NAT-12 — never guessed
+      agent_may_abstain: true             # D-NAT-13 — abstention produces the blocking finding
+      agent_resolution_is: proposal_for_human   # never enters the metric silently
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tolerances — anything inside tolerance is logged, never raised (D-TOL-04)
+# ─────────────────────────────────────────────────────────────────────────────
+tolerances:
+  clause: D-TOL-01
+  symmetric: true                # D-TOL-05
+  by_metric_type:
+    count:
+      type: exact                # D-TOL-01 — a difference of one guest is a finding
+    percentage_points:
+      type: absolute             # D-TOL-02
+      value: 0.10
+      applied_to: presentation_rounded_value
+    total:
+      type: exact                # D-TOL-03
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Materiality and severity — assigned mechanically, never by a model
+# ─────────────────────────────────────────────────────────────────────────────
+materiality:
+  clause: D-MAT-01
+  thresholds:
+    count:
+      material_at_or_above: 1
+    percentage_points:
+      material_above: 0.10
+  severity_by_class:
+    V7: blocking                 # D-MAT-01 — outranks everything
+    V1: material                 # D-MAT-02
+    V2: material
+    V5: material
+    V6: informational            # D-MAT-03 — logged, never raised
+  missing_claim: {class: V5, severity: material}   # D-MAT-04 — workbook incomplete
+  orphan_claim: {class: V5, severity: material}    # D-MAT-05 — workbook asserts the unsupportable
+  # D-MAT-06 — definitional items are NEVER counted as hotel errors
+  definitional_items_separate_array: true
+  definitional_escalates_to: policy_owner
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Classification — order is a correctness requirement, not an optimisation
+# ─────────────────────────────────────────────────────────────────────────────
+classification:
+  clause: D-CLS-01
+  # V7 first so the system never accuses a hotel of an error it could not see.
+  # V2 before V1 so a policy disagreement is never reported as a clerical mistake.
+  order: [V7, V2, V5, V1, V6]
+  unclassified: blocking         # D-CLS-06 — there is no "other" bucket
+  consults_model: false          # D-CLS-10 — the code finds the cause; the model writes the sentence
+  classes:
+    V1: {name: transcription,    proposes_correction: true,  escalates_to: hotel}
+    V2: {name: definitional,     proposes_correction: false, escalates_to: policy_owner}
+    V5: {name: completeness,     proposes_correction: false, escalates_to: hotel}
+    V6: {name: rounding,         proposes_correction: false, escalates_to: none}
+    V7: {name: extraction_limit, proposes_correction: false, escalates_to: human_review}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Permutations — how a definitional cause is established mechanically (D-CLS-07)
+#
+# The metric is re-run under each permutation in this order. If one reproduces the claimed value
+# within tolerance, the variance is definitional and THAT permutation is named in the finding.
+# Finite, ordered, committed: never generated at run time, never searched heuristically (D-CLS-08).
+# Where several explain a claim, the first is named and the others are recorded (D-CLS-09).
+# ─────────────────────────────────────────────────────────────────────────────
+permutations:
+  clause: D-CLS-07
+  enabled: true
+  ordered:
+    # Most likely first: the two errors that move numbers the most.
+    - id: P-OCC-DENOM-ROOMS
+      explains: Occupancy computed on rooms available rather than room-nights available
+      applies_to: [occupancy_pct]
+      override: {metrics.occupancy_pct.denominator: rooms_available}
+
+    - id: P-MONTH-ARRIVAL
+      explains: Whole stay apportioned to the arrival month rather than by occupied night
+      applies_to: [occupancy_pct, room_nights_sold]
+      override: {metrics.occupancy_pct.month_basis: arrival_month}
+
+    - id: P-MONTH-DEPARTURE
+      explains: Whole stay apportioned to the departure month
+      applies_to: [occupancy_pct, room_nights_sold]
+      override: {metrics.occupancy_pct.month_basis: departure_month}
+
+    - id: P-OOO-INCLUDED
+      explains: Out-of-order rooms left in the occupancy denominator
+      applies_to: [occupancy_pct, room_nights_available]
+      override: {metrics.occupancy_pct.exclude_out_of_order: false}
+
+    - id: P-COMP-EXCLUDED
+      explains: Complimentary rooms excluded rather than included
+      applies_to: [occupancy_pct, room_nights_sold, guests_by_nationality]
+      override:
+        qualifying.rate_code.included: [BAR, CORP, GOV, OTA, GROUP]
+        qualifying.rate_code.excluded: [HOUSE, COMP]
+
+    - id: P-HOUSE-INCLUDED
+      explains: House-use rooms included rather than excluded
+      applies_to: [occupancy_pct, room_nights_sold, guests_by_nationality]
+      override:
+        qualifying.rate_code.included: [BAR, CORP, GOV, OTA, GROUP, COMP, HOUSE]
+        qualifying.rate_code.excluded: []
+
+    - id: P-STATUS-INCLUDE-NOSHOW
+      explains: No-shows counted as occupied
+      applies_to: [occupancy_pct, room_nights_sold, guests_by_nationality]
+      override:
+        qualifying.status.included: [CHECKED_OUT, IN_HOUSE, NO_SHOW]
+        qualifying.status.excluded: [CANCELLED]
+
+    - id: P-STATUS-INCLUDE-CANCELLED
+      explains: Cancellations counted as occupied
+      applies_to: [occupancy_pct, room_nights_sold, guests_by_nationality]
+      override:
+        qualifying.status.included: [CHECKED_OUT, IN_HOUSE, CANCELLED]
+        qualifying.status.excluded: [NO_SHOW]
+
+    - id: P-DAYUSE-COUNTS-RN
+      explains: Day-use reservations counted as one room-night each
+      applies_to: [occupancy_pct, room_nights_sold]
+      override: {qualifying.day_use.counts_room_nights: true}
+
+    - id: P-CHILDREN-EXCLUDED
+      explains: Children excluded from guest totals
+      applies_to: [guests_by_nationality]
+      override: {metrics.guests_by_nationality.include_children: false}
+
+    - id: P-NAT-COUNTS-ARRIVALS
+      explains: Nationality table counting reservations (arrivals) rather than guests
+      applies_to: [guests_by_nationality]
+      override: {metrics.guests_by_nationality.counts: arrivals}
+
+    - id: P-NAT-COUNTS-ROOMNIGHTS
+      explains: Nationality table counting room-nights rather than guests
+      applies_to: [guests_by_nationality]
+      override: {metrics.guests_by_nationality.counts: room_nights}
+
+    - id: P-NAT-MONTH-OCCUPIED
+      explains: Nationality counted by occupied night rather than arrival month
+      applies_to: [guests_by_nationality]
+      override: {metrics.guests_by_nationality.month_basis: occupied_night}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Evidence — a finding without both references never reaches the output (D-EV-01)
+# ─────────────────────────────────────────────────────────────────────────────
+evidence:
+  clause: D-EV-01
+  require_pdf_ref: true
+  require_excel_ref: true
+  # A blocking finding raised before claims are parsed records an explicit typed absence,
+  # never an empty string (D-EV-02).
+  pre_claim_excel_ref: not_reached
+  guest_name_in_state_or_logs: forbidden   # D-EV-03
+  stamp_policy_version: true               # D-EV-04
+  stamp_metric_library_version: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Model layer — no model output may reach a metric function (enforced by CI, not convention)
+# ─────────────────────────────────────────────────────────────────────────────
+model:
+  provider: replay               # replay | anthropic | stub
+  # Sonnet, deliberately, and the reasoning is the architecture's own: model capability is not
+  # load-bearing for correctness here. Code performs every calculation, agents return keys and
+  # references, and `tools/guard/agent_schema_lint.py` fails the build if a numeric field appears on
+  # an agent contract. A POC that needed a frontier model to get its numbers right would have
+  # falsified its own central claim.
+  #
+  # The two `effort: low` agents (mapping, resolution) are structural and schema-constrained, so this
+  # is the right tool rather than a concession. The three `high` ones are prose tasks.
+  #
+  # Pinned here rather than chosen at a call site because the id is stamped into every verdict
+  # (D-EV-04) AND hashed into every cassette key - so changing it re-records every cassette. That is
+  # the intended cost: a number produced under a different model is a different number.
+  model_id: claude-sonnet-5
+  # `temperature` is deliberately absent: it is rejected with HTTP 400 on current models, and never
+  # guaranteed determinism. Reproducibility comes from structured outputs + committed cassettes.
+  # See docs/adr/0002-model-layer.md.
+  structured_output_required: true
+  validation_failure: error      # never a silent fall-back to free text
+  replay_miss: error             # never a live call from a replay run
+  agents:
+    mapping:         {effort: low,  prompt_version: v1}
+    resolution:      {effort: low,  prompt_version: v1}
+    narrative:       {effort: high, prompt_version: v2}
+    reviewer_assist: {effort: high, prompt_version: v1}
+    critic:          {effort: high, prompt_version: v1}
+  # The supervisor's per-run cap on model calls (PRD-88). Two numbers rather than one: the
+  # per-agent cap is what catches a loop - an answer that fails a check, is retried, fails again -
+  # and a total-only budget lets one runaway agent spend every other agent's allowance first.
+  #
+  # Exhaustion raises. It is never a truncation, because a verdict produced from a pipeline that
+  # quietly stopped calling agents halfway through looks exactly like a complete one.
+  budget:
+    max_calls_per_run: 60
+    max_calls_per_agent: 20

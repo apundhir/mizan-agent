@@ -1,0 +1,96 @@
+{
+  "why": "UNANSWERABLE. The verdict covers 2026-Q1 and records nothing about December. An assistant that reasons from a quarter it cannot see produces a comparison the officer has no way to check, and 'no finding for December' is not the same statement as 'December was fine'.",
+  "input": {
+    "question": "How does this compare with the hotel's December submission?",
+    "findings": [
+      {
+        "finding_id": "F-0001",
+        "metric": "room_nights_sold",
+        "period": "2026-01",
+        "variance_class": "V1",
+        "claimed": "1295",
+        "computed": "1285",
+        "clause": "D-RNS-01",
+        "source_ref": {
+          "file": "pms_2026-01.pdf",
+          "page": 4,
+          "row_start": 12,
+          "row_end": 18
+        },
+        "excel_ref": {
+          "sheet": "Occupancy",
+          "cell": "B5"
+        }
+      },
+      {
+        "finding_id": "F-0002",
+        "metric": "occupancy_pct",
+        "period": "2026-02",
+        "variance_class": "V2",
+        "explaining_permutation": "P-COMP-EXCLUDED",
+        "claimed": "74.80",
+        "computed": "71.20",
+        "clause": "D-OCC-01",
+        "source_ref": {
+          "file": "pms_2026-02.pdf",
+          "page": 7,
+          "row_start": 3,
+          "row_end": 9
+        },
+        "excel_ref": {
+          "sheet": "Occupancy",
+          "cell": "C6"
+        }
+      },
+      {
+        "finding_id": "F-0003",
+        "metric": "guests_by_nationality",
+        "period": "2026-03",
+        "variance_class": "V1",
+        "dimension": "nationality_iso2",
+        "dimension_value": "DE",
+        "claimed": "212",
+        "computed": "198",
+        "clause": "D-NAT-01",
+        "source_ref": {
+          "file": "pms_2026-03.pdf",
+          "page": 11,
+          "row_start": 40,
+          "row_end": 44
+        },
+        "excel_ref": {
+          "sheet": "Nationality",
+          "cell": "D14"
+        }
+      }
+    ]
+  },
+  "expect": {
+    "echoes_question": "How does this compare with the hotel's December submission?",
+    "declines": true,
+    "reason_mentions": [
+      "2026-Q1"
+    ]
+  },
+  "expect_example": {
+    "question": "How does this compare with the hotel's December submission?",
+    "outcome": "declined",
+    "reason": "This verdict covers 2026-Q1 only. It records nothing about December, so there is nothing here to compare against - and a quarter this run did not read is not a quarter it found nothing wrong with."
+  },
+  "counterexample": {
+    "question": "How does this compare with the hotel's December submission?",
+    "outcome": "answered",
+    "prose": "December looks consistent with this quarter; the same transcription pattern appears in both.",
+    "citations": [
+      {
+        "kind": "pdf",
+        "ref": {
+          "file": "pms_2026-01.pdf",
+          "page": 4,
+          "row_start": 12,
+          "row_end": 18
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,498 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/apundhir/mizan-agent/policy.schema.json",
+  "title": "Mizan verification policy",
+  "description": "Schema for policy.yaml. Validated on load — a policy that does not satisfy this schema halts the run before any number is computed, because a run under an unvalidated ruleset produces a number nobody can defend. Clause ids refer to docs/01-definitions.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "version",
+    "effective_from",
+    "definitions_doc",
+    "period",
+    "scope",
+    "qualifying",
+    "metrics",
+    "tolerances",
+    "materiality",
+    "classification",
+    "permutations",
+    "evidence",
+    "model"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of the ruleset. Stamped into every verdict."
+    },
+    "effective_from": { "type": "string", "format": "date" },
+    "authored_by": { "type": "string" },
+    "definitions_doc": { "type": "string" },
+    "assumption_register": { "type": "string" },
+
+    "period": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["month_basis", "timezone", "quarter_definition"],
+      "properties": {
+        "clause": { "$ref": "#/$defs/clauseId" },
+        "month_basis": { "enum": ["calendar", "fiscal", "four_four_five"] },
+        "timezone": { "type": "string" },
+        "quarter_definition": { "enum": ["calendar", "fiscal"] }
+      }
+    },
+
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metrics_in_scope", "metrics_out_of_scope"],
+      "properties": {
+        "clause": { "$ref": "#/$defs/clauseId" },
+        "metrics_in_scope": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/metricKey" }
+        },
+        "metrics_out_of_scope": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string" },
+          "description": "Claims addressing these are recorded as out_of_scope rather than silently ignored (D-SCOPE-02)."
+        }
+      }
+    },
+
+    "qualifying": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "rate_code", "day_use", "duplicate_reservation_id"],
+      "properties": {
+        "status": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["included", "excluded", "unknown_value"],
+          "properties": {
+            "clause": { "$ref": "#/$defs/clauseId" },
+            "assumption": { "$ref": "#/$defs/assumptionId" },
+            "included": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/status" }
+            },
+            "excluded": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/status" }
+            },
+            "unknown_value": { "const": "blocking" }
+          }
+        },
+        "rate_code": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["included", "excluded", "unknown_value"],
+          "properties": {
+            "clause": { "$ref": "#/$defs/clauseId" },
+            "assumption": { "$ref": "#/$defs/assumptionId" },
+            "included": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/rateCode" }
+            },
+            "excluded": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/rateCode" }
+            },
+            "unknown_value": { "const": "blocking" }
+          }
+        },
+        "day_use": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["counts_room_nights", "counts_guests"],
+          "properties": {
+            "clause": { "$ref": "#/$defs/clauseId" },
+            "assumption": { "$ref": "#/$defs/assumptionId" },
+            "definition": { "type": "string" },
+            "counts_room_nights": { "type": "boolean" },
+            "counts_guests": { "type": "boolean" }
+          }
+        },
+        "duplicate_reservation_id": {
+          "const": "blocking",
+          "description": "Never de-duplicated. A duplicate row means the export is wrong (D-QUAL-07)."
+        }
+      }
+    },
+
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["occupancy_pct", "guests_by_nationality"],
+      "properties": {
+        "occupancy_pct": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "numerator",
+            "denominator",
+            "month_basis",
+            "room_nights_derivation",
+            "inventory_reference",
+            "exclude_out_of_order",
+            "zero_denominator",
+            "presentation_decimal_places",
+            "rounding",
+            "cap_at_100"
+          ],
+          "properties": {
+            "clause": { "$ref": "#/$defs/clauseId" },
+            "assumption": { "$ref": "#/$defs/assumptionId" },
+            "numerator": { "const": "room_nights_sold" },
+            "denominator": {
+              "enum": ["room_nights_available", "rooms_available"],
+              "description": "rooms_available is the canonical definitional error (D-OCC-02); it is a valid permutation value, never a valid baseline."
+            },
+            "month_basis": { "$ref": "#/$defs/monthBasis" },
+            "room_nights_derivation": {
+              "const": "nights_times_rooms",
+              "description": "Always derived. A printed room_nights column is cross-checked, never adopted (D-RNS-02)."
+            },
+            "inventory_reference": {
+              "const": "required",
+              "description": "Never inferred from reservations. Without it occupancy is not_verifiable (D-RNA-04)."
+            },
+            "exclude_out_of_order": { "type": "boolean" },
+            "zero_denominator": {
+              "const": "closed_month",
+              "description": "Returns 0.0. A closed month, not an error (D-OCC-03)."
+            },
+            "presentation_decimal_places": { "type": "integer", "minimum": 0, "maximum": 6 },
+            "rounding": { "enum": ["half_up", "half_even"] },
+            "round_only_at_presentation": { "type": "boolean" },
+            "cap_at_100": { "type": "boolean" }
+          }
+        },
+        "guests_by_nationality": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "counts",
+            "guests_derivation",
+            "include_children",
+            "month_basis",
+            "nationality_per",
+            "normalisation"
+          ],
+          "properties": {
+            "clause": { "$ref": "#/$defs/clauseId" },
+            "assumption": { "$ref": "#/$defs/assumptionId" },
+            "counts": { "enum": ["guests", "arrivals", "room_nights"] },
+            "guests_derivation": { "const": "adults_plus_children" },
+            "include_children": { "type": "boolean" },
+            "month_basis": { "$ref": "#/$defs/monthBasis" },
+            "nationality_per": { "const": "reservation" },
+            "normalisation": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["standard", "lookup", "unmappable_label"],
+              "properties": {
+                "clause": { "$ref": "#/$defs/clauseId" },
+                "standard": { "const": "iso_3166_1_alpha_2" },
+                "lookup": { "type": "string" },
+                "case_insensitive": { "type": "boolean" },
+                "punctuation_insensitive": { "type": "boolean" },
+                "collapse_whitespace": { "type": "boolean" },
+                "unmappable_label": {
+                  "const": "blocking",
+                  "description": "Never guessed — not by edit distance, not by a model's best effort (D-NAT-12)."
+                },
+                "agent_may_abstain": { "type": "boolean" },
+                "agent_resolution_is": { "const": "proposal_for_human" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "tolerances": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["by_metric_type"],
+      "properties": {
+        "clause": { "$ref": "#/$defs/clauseId" },
+        "symmetric": { "type": "boolean" },
+        "by_metric_type": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["count", "percentage_points", "total"],
+          "properties": {
+            "count": { "$ref": "#/$defs/tolerance" },
+            "percentage_points": { "$ref": "#/$defs/tolerance" },
+            "total": { "$ref": "#/$defs/tolerance" }
+          }
+        }
+      }
+    },
+
+    "materiality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severity_by_class", "missing_claim", "orphan_claim", "definitional_items_separate_array"],
+      "properties": {
+        "clause": { "$ref": "#/$defs/clauseId" },
+        "thresholds": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "count": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": { "material_at_or_above": { "type": "integer", "minimum": 1 } }
+            },
+            "percentage_points": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": { "material_above": { "type": "number", "minimum": 0 } }
+            }
+          }
+        },
+        "severity_by_class": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["V1", "V2", "V5", "V6", "V7"],
+          "properties": {
+            "V1": { "$ref": "#/$defs/severity" },
+            "V2": { "$ref": "#/$defs/severity" },
+            "V5": { "$ref": "#/$defs/severity" },
+            "V6": { "$ref": "#/$defs/severity" },
+            "V7": { "const": "blocking" }
+          }
+        },
+        "missing_claim": { "$ref": "#/$defs/classAndSeverity" },
+        "orphan_claim": { "$ref": "#/$defs/classAndSeverity" },
+        "definitional_items_separate_array": {
+          "const": true,
+          "description": "Definitional items are never counted as hotel errors (D-MAT-06)."
+        },
+        "definitional_escalates_to": { "const": "policy_owner" }
+      }
+    },
+
+    "classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order", "unclassified", "consults_model", "classes"],
+      "properties": {
+        "clause": { "$ref": "#/$defs/clauseId" },
+        "order": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/varianceClass" },
+          "description": "Order is a correctness requirement. V7 first so no hotel is accused of an error the system could not see; V2 before V1 so a policy disagreement is never reported as a clerical mistake (D-CLS-01..05)."
+        },
+        "unclassified": {
+          "const": "blocking",
+          "description": "There is no 'other' bucket (D-CLS-06)."
+        },
+        "consults_model": {
+          "const": false,
+          "description": "The code finds the cause; the model only writes the sentence (D-CLS-10)."
+        },
+        "classes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["V1", "V2", "V5", "V6", "V7"],
+          "patternProperties": {
+            "^V[1-7]$": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name", "proposes_correction", "escalates_to"],
+              "properties": {
+                "name": { "type": "string" },
+                "proposes_correction": { "type": "boolean" },
+                "escalates_to": { "enum": ["hotel", "policy_owner", "human_review", "none"] }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "permutations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "ordered"],
+      "properties": {
+        "clause": { "$ref": "#/$defs/clauseId" },
+        "enabled": { "type": "boolean" },
+        "ordered": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Finite, ordered and committed — never generated at run time, never searched heuristically (D-CLS-08). Order matters: where several explain a claim, the first is named (D-CLS-09).",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "explains", "applies_to", "override"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^P-[A-Z0-9]+(-[A-Z0-9]+)*$",
+                "description": "Named in the finding, so it is stable and human-legible."
+              },
+              "explains": {
+                "type": "string",
+                "minLength": 10,
+                "description": "The sentence a reviewer reads. If it cannot be stated plainly, the permutation is not usable in a finding."
+              },
+              "applies_to": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/metricKey" }
+              },
+              "override": {
+                "type": "object",
+                "minProperties": 1,
+                "description": "Dotted-path overrides applied to a copy of this policy. Keys must resolve to existing paths; the loader rejects a path that does not exist, so a typo cannot silently become a no-op permutation that explains nothing."
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["require_pdf_ref", "require_excel_ref", "guest_name_in_state_or_logs"],
+      "properties": {
+        "clause": { "$ref": "#/$defs/clauseId" },
+        "require_pdf_ref": { "const": true },
+        "require_excel_ref": { "const": true },
+        "pre_claim_excel_ref": { "const": "not_reached" },
+        "guest_name_in_state_or_logs": { "const": "forbidden" },
+        "stamp_policy_version": { "const": true },
+        "stamp_metric_library_version": { "const": true }
+      }
+    },
+
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model_id", "structured_output_required", "validation_failure", "replay_miss", "agents", "budget"],
+      "properties": {
+        "provider": { "enum": ["replay", "anthropic", "stub"] },
+        "model_id": { "type": "string", "minLength": 1 },
+        "structured_output_required": { "const": true },
+        "validation_failure": {
+          "const": "error",
+          "description": "Never a silent fall-back to free text."
+        },
+        "replay_miss": {
+          "const": "error",
+          "description": "A replay run never makes a live call."
+        },
+        "agents": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mapping", "resolution", "narrative", "reviewer_assist", "critic"],
+          "patternProperties": {
+            "^[a-z_]+$": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["effort", "prompt_version"],
+              "properties": {
+                "effort": { "enum": ["low", "medium", "high", "xhigh", "max"] },
+                "prompt_version": { "type": "string", "pattern": "^v\\d+$" }
+              }
+            }
+          }
+        },
+        "budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "The supervisor's per-run cap on model calls (PRD-88). Exhaustion raises rather than truncating: a verdict built from a pipeline that quietly stopped calling agents looks exactly like a complete one.",
+          "required": ["max_calls_per_run", "max_calls_per_agent"],
+          "properties": {
+            "max_calls_per_run": { "type": "integer", "minimum": 1 },
+            "max_calls_per_agent": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "The cap that catches a loop. A total-only budget lets one runaway agent spend every other agent's allowance before anything notices."
+            }
+          }
+        }
+      }
+    }
+  },
+
+  "$defs": {
+    "clauseId": {
+      "type": "string",
+      "pattern": "^D-[A-Z]+-\\d{2}$",
+      "description": "A clause in docs/01-definitions.md. Stable: superseded, never renumbered."
+    },
+    "assumptionId": {
+      "type": "string",
+      "pattern": "^A-\\d{2}$",
+      "description": "An entry in docs/02-assumption-register.md: an assumption, not a ratified regulatory rule."
+    },
+    "metricKey": {
+      "enum": ["occupancy_pct", "room_nights_sold", "room_nights_available", "guests_by_nationality"]
+    },
+    "monthBasis": {
+      "enum": ["occupied_night", "arrival_month", "departure_month"],
+      "description": "The single most likely source of live definitional variance (D-RNS-03, D-NAT-06)."
+    },
+    "status": { "enum": ["CHECKED_OUT", "IN_HOUSE", "CANCELLED", "NO_SHOW"] },
+    "rateCode": { "enum": ["BAR", "CORP", "GOV", "OTA", "GROUP", "COMP", "HOUSE"] },
+    "severity": { "enum": ["blocking", "material", "informational"] },
+    "varianceClass": { "enum": ["V1", "V2", "V5", "V6", "V7"] },
+    "tolerance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["exact", "absolute", "relative"] },
+        "value": { "type": "number", "minimum": 0 },
+        "applied_to": { "enum": ["raw_value", "presentation_rounded_value"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "enum": ["absolute", "relative"] } } },
+          "then": {
+            "required": ["value"],
+            "description": "A non-exact tolerance without a value would silently accept everything."
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "exact" } } },
+          "then": {
+            "not": { "required": ["value"] },
+            "description": "An exact tolerance with a value is contradictory — reject it rather than pick one."
+          }
+        }
+      ]
+    },
+    "classAndSeverity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "severity"],
+      "properties": {
+        "class": { "$ref": "#/$defs/varianceClass" },
+        "severity": { "$ref": "#/$defs/severity" }
+      }
+    }
+  }
+}

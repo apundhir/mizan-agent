@@ -1,0 +1,24 @@
+{
+  "why": "Niger is a substring of Nigeria and Guinea of Papua New Guinea. Character similarity is not evidence about a country, and the shortlist will contain both.",
+  "input": {
+    "raw_label": "Niger"
+  },
+  "expect": {
+    "abstains": true,
+    "reason_mentions": [
+      "nigeria"
+    ]
+  },
+  "expect_example": {
+    "raw_label": "Niger",
+    "outcome": "abstained",
+    "reason": "Niger and Nigeria are both in the list and this label matches the shorter exactly, which is also what a truncated Nigeria would look like."
+  },
+  "counterexample": {
+    "raw_label": "Niger",
+    "outcome": "resolved",
+    "iso_alpha2": "NG",
+    "matched_candidate": "nigeria",
+    "reason": "Niger is short for Nigeria."
+  }
+}

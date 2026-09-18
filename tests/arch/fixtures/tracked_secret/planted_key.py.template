@@ -1,0 +1,20 @@
+"""VIOLATION FIXTURE - the paste that happens once, at six in the evening, to check a thing works.
+
+Nobody adds a key to a source file on purpose. They add it to see whether the call works at all,
+intend to move it to the environment, and then the branch gets pushed. That is the entire threat
+model, and it is why the guard exists before any key does.
+
+## Why this is a `.template` and not a `.py`
+
+The first version of this fixture was a real `.py` file carrying a credential-shaped literal, and
+`make ci` went red on the commit that added it - the secret guard caught its own fixture, because a
+fixture is a tracked file and "a key pasted into a test fixture" is one of the threats listed in the
+guard's own docstring.
+
+The obvious fix is an allowlist exempting this path. That is worse: an allowlist is a hole, it needs
+maintaining, and the one thing it would exempt is the directory a careless paste is most likely to
+land in. So the tracked file contains no matchable string and the test substitutes one at runtime.
+Nothing credential-shaped is ever committed, and no exemption exists to erode.
+"""
+
+CLIENT = "@@KEY@@"

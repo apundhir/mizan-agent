@@ -1,0 +1,22 @@
+{
+  "files": {
+    "README.md": "sha256:8f78151a1f4c115dc960bfd47ffe7ff44675b4260f8094846a92333a0ae7546d",
+    "ground_truth/reservations.csv": "sha256:cd2e1609fc82f393dfaac2fd83fa0963a452800186b043751116f362479f749a",
+    "ground_truth/truth_metrics.json": "sha256:8ebacfbc48f8dfaf53a8a84a9813f685b81cb4f3473922c88f7247e7c0ae6cee",
+    "submission/claims_2026-Q1.xlsx": "sha256:372f13efdcaf7de2c1150d7bf5bda53fd5c4ba80eaba4a6626e57a1522b9360e",
+    "submission/inventory_2026-Q1.csv": "sha256:52c8d88550cae082e3024c10540058edf81f22d8237c7d9ada9f714a493fff6b",
+    "submission/pms_2026-01.pdf": "sha256:398da2bc6992cf7dec36c569ad29f701b47f24cd8367add8c83d246c004a6bc5",
+    "submission/pms_2026-02.pdf": "sha256:da8fd0bc17130c7f14b2fa2b98fc58b497430805f733bdb0cd3a0c79e40ff07e",
+    "submission/pms_2026-03.pdf": "sha256:e134ce325b181959874d9b6c243ae66150c9b407602529c9c2360e94a06801e7"
+  },
+  "generator_version": "1.0.0",
+  "hotel_id": "MZN-DXB-001",
+  "pdf_pages": {
+    "2026-01": 15,
+    "2026-02": 15,
+    "2026-03": 17
+  },
+  "period": "2026-Q1",
+  "seed": 20260913,
+  "spec_digest": "sha256:ce2bb1dc2487f5fe3af03470ef299ce4f3bccb69aabe623aebd5138db9a3b4d3"
+}

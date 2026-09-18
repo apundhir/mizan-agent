@@ -1,0 +1,287 @@
+{
+  "agent": "mapping",
+  "effort": "low",
+  "key": "f3be55ac1bf8291d1467ad4628168cd8",
+  "model_id": "claude-sonnet-5",
+  "prompt_version": "v1",
+  "request_canonical": {
+    "agent": "mapping",
+    "effort": "low",
+    "key_schema_version": 1,
+    "max_tokens": 16000,
+    "messages": [
+      {
+        "content": "Metric names you may use.\n  verified by this system: guests_by_nationality, occupancy_pct, room_nights_available, room_nights_sold\n  recorded but not verified: age_band, average_daily_rate, average_length_of_stay, destination_fee, revenue, revpar, tax\n\nDimension names you may use: nationality_iso2\n\n# sheets\n- 'Summary' (used range A1:B11)\n- 'Occupancy' (used range A1:D8)\n- 'Nationality' (used range A1:E25)\n- 'Rate & Revenue' (used range A1:D7)\n\n# labels\n## sheet 'Summary' (used range A1:B11)\n  A1: Marina Vista Hotel (synthetic) — MZN-DXB-001\n  A2: Quarterly statistical submission — 2026-Q1\n  A3: Cover sheet. Figures are on the Occupancy and Nationality sheets.\n  A4: Property\n  B4: Marina Vista Hotel (synthetic)\n  A5: Property code\n  B5: MZN-DXB-001\n  A6: Reporting period\n  B6: 2026-Q1\n  A7: Months covered\n  B7: January 2026, February 2026, March 2026\n  A8: Submitted by\n  B8: Revenue Office, Marina Vista Hotel\n  A9: Prepared\n  B9: 2026-03-31T23:59:59+04:00\n  A10: Source\n  B10: Property management system reservation detail reports (attached)\n  A11: Data classification\n  B11: Synthetic — contains no real property or guest data\n## sheet 'Occupancy' (used range A1:D8)\n  A1: Marina Vista Hotel (synthetic) — MZN-DXB-001\n  A2: Occupancy — 2026-Q1\n  A3: Room nights sold and available by month, with occupancy. Quarter row is the period total.\n  A4: Month\n  B4: Room Nights Sold\n  C4: Room Nights Available\n  D4: Occupancy %\n  A5: January 2026\n  B5: <value>\n  C5: <value>\n  D5: <value>\n  A6: February 2026\n  B6: <value>\n  C6: <value>\n  D6: <value>\n  A7: March 2026\n  B7: <value>\n  C7: <value>\n  D7: <value>\n  A8: 2026-Q1 total\n  B8: <value>\n  C8: <value>\n  D8: <value>\n## sheet 'Nationality' (used range A1:E25)\n  A1: Marina Vista Hotel (synthetic) — MZN-DXB-001\n  A2: Guests by nationality — 2026-Q1\n  A3: Guests counted in the month of arrival. Country as recorded by the property.\n  A4: Country\n  B4: January 2026\n  C4: February 2026\n  D4: March 2026\n  E4: 2026-Q1 total\n  A5: Australia\n  B5: <value>\n  C5: <value>\n  D5: <value>\n  E5: <value>\n  A6: China\n  B6: <value>\n  C6: <value>\n  D6: <value>\n  E6: <value>\n  A7: Czech Republic\n  B7: <value>\n  C7: <value>\n  D7: <value>\n  E7: <value>\n  A8: Egypt\n  B8: <value>\n  C8: <value>\n  D8: <value>\n  E8: <value>\n  A9: France\n  A10: Germany\n  A11: Iceland\n  A12: India\n  A13: Italy\n  A14: Japan\n  A15: Korea, Republic of\n  A16: Netherlands\n  A17: Pakistan\n  A18: Philippines\n  A19: Poland\n  A20: Russian Federation\n  A21: Saudi Arabia\n  A22: Switzerland\n  A23: United Kingdom\n  A24: United States\n  A25: Total\n## sheet 'Rate & Revenue' (used range A1:D7)\n  A1: Marina Vista Hotel (synthetic) — MZN-DXB-001\n  A2: Rate and revenue — 2026-Q1\n  A3: Submitted for completeness. Outside the scope of statistical verification.\n  A4: Measure\n  B4: January 2026\n  C4: February 2026\n  D4: March 2026\n  A5: Average Daily Rate (AED)\n  B5: <value>\n  C5: <value>\n  D5: <value>\n  A6: RevPAR (AED)\n  B6: <value>\n  C6: <value>\n  D6: <value>\n  A7: Average Length of Stay (nights)\n  B7: <value>\n  C7: <value>\n  D7: <value>\n\nCells shown as <value> hold a quantity and <formula> holds a formula. Neither can be read at this stage, by design - map the ranges and the second stage will read them.",
+        "role": "user"
+      }
+    ],
+    "model_id": "claude-sonnet-5",
+    "output_schema": {
+      "$defs": {
+        "CoverSheet": {
+          "additionalProperties": false,
+          "description": "The sheet that identifies the submission rather than carrying figures.\n\nMapped as a role rather than left unmapped: the cover sheet is *used* — its property code and\nperiod are checked against the PDFs before any figure is compared — so flagging it for a human\nevery run would be reporting a correct workbook as incomplete.",
+          "properties": {
+            "period_cell": {
+              "description": "A1 cell holding the reporting period.",
+              "title": "Period Cell",
+              "type": "string"
+            },
+            "property_code_cell": {
+              "description": "A1 cell holding the property/hotel code.",
+              "title": "Property Code Cell",
+              "type": "string"
+            },
+            "sheet": {
+              "minLength": 1,
+              "title": "Sheet",
+              "type": "string"
+            }
+          },
+          "required": [
+            "sheet",
+            "property_code_cell",
+            "period_cell"
+          ],
+          "title": "CoverSheet",
+          "type": "object"
+        },
+        "MetricBlock": {
+          "additionalProperties": false,
+          "description": "One rectangle of values, and what they are figures *of*.\n\nEvery field is a name or an A1 range. Nothing here is a number, and nothing here is a value.",
+          "properties": {
+            "dimension": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "'nationality_iso2', or null for an undimensioned metric.",
+              "title": "Dimension"
+            },
+            "dimension_label_range": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "A1 range of the dimension labels, e.g. 'A5:A25'.",
+              "title": "Dimension Label Range"
+            },
+            "dimension_total_range": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "A1 range of a stated total *across the dimension* - the 'Total' row under a list of countries. Excluded from the value range, because a total is not one more country.",
+              "title": "Dimension Total Range"
+            },
+            "metric": {
+              "description": "A metric name from the vocabulary given in the prompt. Checked against policy before use - an unrecognised name is a mapping for a human, never a new metric (D-KEY-03).",
+              "minLength": 1,
+              "title": "Metric",
+              "type": "string"
+            },
+            "orientation": {
+              "$ref": "#/$defs/Orientation"
+            },
+            "period_label_range": {
+              "description": "A1 range of the cells holding the period labels, e.g. 'A5:A8' or 'B4:E4'.",
+              "title": "Period Label Range",
+              "type": "string"
+            },
+            "sheet": {
+              "minLength": 1,
+              "title": "Sheet",
+              "type": "string"
+            },
+            "value_range": {
+              "description": "A1 range of the value cells only, e.g. 'B5:B8'.",
+              "title": "Value Range",
+              "type": "string"
+            }
+          },
+          "required": [
+            "sheet",
+            "metric",
+            "orientation",
+            "value_range",
+            "period_label_range"
+          ],
+          "title": "MetricBlock",
+          "type": "object"
+        },
+        "Orientation": {
+          "description": "Which way round the table is.\n\nBoth forms appear in one real workbook, which is why this cannot be assumed. `Occupancy` runs\nperiods down the rows with a metric per column; `Nationality` runs periods across the columns\nwith a country per row. Asking the agent to say which is asking it to read a layout, which is\nwhat a model is for.",
+          "enum": [
+            "periods_down_rows",
+            "periods_across_columns"
+          ],
+          "title": "Orientation",
+          "type": "string"
+        },
+        "UnmappedBlock": {
+          "additionalProperties": false,
+          "description": "Something the agent could not place, said out loud.\n\nThe `reason` is what a human reads when deciding what to do about it, so it is a sentence. A\nmapping agent that returns an empty `unmapped` list for a workbook it did not understand is\ncaught by `unaccounted_sheets`, not by this type.",
+          "properties": {
+            "cells": {
+              "description": "A1 range covering what could not be mapped.",
+              "title": "Cells",
+              "type": "string"
+            },
+            "reason": {
+              "minLength": 1,
+              "title": "Reason",
+              "type": "string"
+            },
+            "sheet": {
+              "minLength": 1,
+              "title": "Sheet",
+              "type": "string"
+            }
+          },
+          "required": [
+            "sheet",
+            "cells",
+            "reason"
+          ],
+          "title": "UnmappedBlock",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "The agent's whole answer.",
+      "properties": {
+        "blocks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/MetricBlock"
+          },
+          "title": "Blocks",
+          "type": "array"
+        },
+        "cover": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CoverSheet"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "unmapped": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/UnmappedBlock"
+          },
+          "title": "Unmapped",
+          "type": "array"
+        }
+      },
+      "title": "WorkbookMapping",
+      "type": "object"
+    },
+    "prompt_version": "v1",
+    "system": "You map a hotel's statistical submission workbook. You decide **which range holds which metric**.\nYou never report, estimate or adjust a figure — you cannot see one, and that is deliberate.\n\n## What you are given\n\nA digest of the workbook: every sheet name, its used range, and its **labels**. Cells holding a\nquantity appear as `<value>` and cells holding a formula appear as `<formula>`. Those are not\nredactions you should try to work around; there is no channel through which you could. Code reads\nthe values after you have said where they are.\n\n## What to return\n\nFor every rectangle of figures, one block:\n\n- `sheet` — the sheet name, exactly as the digest spells it.\n- `metric` — one name from the vocabulary below. Nothing else is accepted.\n- `orientation` — `periods_down_rows` when each row is a period, `periods_across_columns` when each\n  column is a period. Both occur; read the header labels rather than assuming.\n- `value_range` — the A1 range of the **value cells only**. No header row, no label column, and no\n  total row that sits across a dimension.\n- `period_label_range` — the A1 range of the cells holding the period labels. One column when\n  periods run down the rows, one row when they run across the columns. It must have exactly as many\n  cells as the value range has rows (or columns) — an unequal count attributes figures to the wrong\n  period and is rejected.\n- `dimension` / `dimension_label_range` — only for a metric that is a figure *per* something.\n  `guests_by_nationality` is per country: the dimension is `nationality_iso2` and the label range is\n  the column of country names. The label range must have exactly as many cells as the value range\n  has rows.\n- **A quarter roll-up is a period, not a total.** A row labelled `2026-Q1 total` under three\n  monthly rows, or a column labelled `2026-Q1 total` beside three monthly columns, is a **claim\n  about the quarter** and belongs inside `value_range` and `period_label_range` like any month. It\n  is a different metric key from the months, not a sum of them, and the system checks that it\n  agrees with them — which it can only do if you include it. Leaving it out is the most common way\n  this mapping comes back incomplete: the figures are then unmapped cells, and the run halts and\n  asks a human to map by hand what you were looking at.\n\n  Distinguish it from the next bullet by **direction**: a roll-up runs along the *period* axis and\n  is a period; a total that runs across the *dimension* axis (the row beneath a list of countries)\n  is not.\n- `dimension_total_range` — where a sheet has a `Total` row **across** the dimension (the row under a\n  list of countries), give its range here and **leave it out of `value_range`**. A total is not one\n  more country.\n\nOne block per metric. Where a sheet has three metric columns beside one column of period labels,\nthat is three blocks sharing a `period_label_range`.\n\nSet `cover` for the sheet that identifies the submission rather than carrying figures — the one with\nthe property code and the reporting period — naming the cell holding each.\n\n## Vocabulary\n\nThe metric names you may use are given in the message. Some of them are figures this system\nverifies; others are ones it deliberately does not, and are recorded rather than checked. **Map both\nkinds.** A sheet of rate and revenue measures is mapped to its out-of-scope names, not left out —\nleaving it out is reported as a gap for a human, which wastes their time on a decision that has\nalready been made.\n\n**Never invent a metric name.** If a block of figures does not match any name in the vocabulary, put\nit in `unmapped` with a sentence saying what it appears to be. An invented name is not accepted as a\nnew metric; it is treated exactly like an unmapped block, with the extra cost that nobody can tell\nfrom your answer that you were unsure.\n\n## Account for everything\n\nEvery sheet must appear in `blocks`, in `cover`, or in `unmapped`, and every `<value>` cell must fall\ninside some block's range. A figure you do not mention is checked for and reported anyway, so\nomitting one gains nothing and loses the explanation you could have given.\n\nIf you are unsure, `unmapped` with a clear reason is the right answer. A wrong mapping puts a\nhotel's figure under the wrong metric or the wrong month, and it is compared in earnest against\nsomething it has nothing to do with. Saying so costs a human two minutes.\n\n## Tools\n\n- `list_sheets` — Every sheet name and its used range. Geometry, never contents.\n- `peek_headers` — Every label in one sheet, with quantities and formulas shown as redaction tokens. There is no code path here that returns a value.\n"
+  },
+  "response_json": {
+    "blocks": [
+      {
+        "dimension": null,
+        "dimension_label_range": null,
+        "dimension_total_range": null,
+        "metric": "room_nights_sold",
+        "orientation": "periods_down_rows",
+        "period_label_range": "A5:A8",
+        "sheet": "Occupancy",
+        "value_range": "B5:B8"
+      },
+      {
+        "dimension": null,
+        "dimension_label_range": null,
+        "dimension_total_range": null,
+        "metric": "room_nights_available",
+        "orientation": "periods_down_rows",
+        "period_label_range": "A5:A8",
+        "sheet": "Occupancy",
+        "value_range": "C5:C8"
+      },
+      {
+        "dimension": null,
+        "dimension_label_range": null,
+        "dimension_total_range": null,
+        "metric": "occupancy_pct",
+        "orientation": "periods_down_rows",
+        "period_label_range": "A5:A8",
+        "sheet": "Occupancy",
+        "value_range": "D5:D8"
+      },
+      {
+        "dimension": "nationality_iso2",
+        "dimension_label_range": "A5:A24",
+        "dimension_total_range": "B25:E25",
+        "metric": "guests_by_nationality",
+        "orientation": "periods_across_columns",
+        "period_label_range": "B4:E4",
+        "sheet": "Nationality",
+        "value_range": "B5:E24"
+      },
+      {
+        "dimension": null,
+        "dimension_label_range": null,
+        "dimension_total_range": null,
+        "metric": "average_daily_rate",
+        "orientation": "periods_across_columns",
+        "period_label_range": "B4:D4",
+        "sheet": "Rate & Revenue",
+        "value_range": "B5:D5"
+      },
+      {
+        "dimension": null,
+        "dimension_label_range": null,
+        "dimension_total_range": null,
+        "metric": "revpar",
+        "orientation": "periods_across_columns",
+        "period_label_range": "B4:D4",
+        "sheet": "Rate & Revenue",
+        "value_range": "B6:D6"
+      },
+      {
+        "dimension": null,
+        "dimension_label_range": null,
+        "dimension_total_range": null,
+        "metric": "average_length_of_stay",
+        "orientation": "periods_across_columns",
+        "period_label_range": "B4:D4",
+        "sheet": "Rate & Revenue",
+        "value_range": "B7:D7"
+      }
+    ],
+    "cover": {
+      "period_cell": "B6",
+      "property_code_cell": "B5",
+      "sheet": "Summary"
+    },
+    "unmapped": []
+  },
+  "usage": {
+    "cache_read_tokens": 0,
+    "input_tokens": 5243,
+    "output_tokens": 1211
+  }
+}

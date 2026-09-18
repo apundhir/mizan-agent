@@ -1,0 +1,15 @@
+# Prompt manifest - digests of every committed prompt version.
+#
+# A version's text is IMMUTABLE once a cassette has been recorded against it: the
+# cassette key hashes the version, not the text, so an edited v1 keeps its key and
+# serves a stale response for a prompt that no longer exists.
+#
+# To change a prompt, add v<n+1>.md and point policy.yaml at it. Regenerate with:
+#   python -m tda.agents.prompts.registry --write-manifest
+
+critic/v1  bf2c959c86462ae7
+mapping/v1  7dee8288a63baa43
+narrative/v1  98c65d7f7bd6455e
+narrative/v2  b2394e5fa0848d57
+resolution/v1  e5c618cedaf11987
+reviewer_assist/v1  2cb507cade86345a

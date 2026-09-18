@@ -1,0 +1,24 @@
+{
+  "why": "Austria and Australia differ by three characters and by eleven thousand kilometres. Any similarity threshold loose enough to catch a real typo catches this pair, so the agent must face the ambiguity rather than be spared it. This is the refusal scene.",
+  "input": {
+    "raw_label": "Austrlia"
+  },
+  "expect": {
+    "abstains": true,
+    "reason_mentions": [
+      "austr"
+    ]
+  },
+  "expect_example": {
+    "raw_label": "Austrlia",
+    "outcome": "abstained",
+    "reason": "Both Austria and Australia are one transposition away from this label, and nothing else in the row distinguishes them."
+  },
+  "counterexample": {
+    "raw_label": "Austrlia",
+    "outcome": "resolved",
+    "iso_alpha2": "AU",
+    "matched_candidate": "australia",
+    "reason": "Australia is the more common destination."
+  }
+}

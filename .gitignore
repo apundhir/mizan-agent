@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Run outputs — every artefact is reproducible from `make run`
+artifacts/
+
+# Generated corpora are reproducible from `make datagen`; only the spec is tracked.
+# The demo corpus IS tracked (it is frozen and referenced by the walkthrough).
+corpus/fixtures/
+
+# Secrets. Never commit a key.
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

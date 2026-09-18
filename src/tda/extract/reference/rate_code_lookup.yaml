@@ -1,0 +1,36 @@
+# Rate code normalisation — the table behind D-QUAL-04 and D-QUAL-05.
+#
+# The rate code decides whether a room that was physically occupied counts as sold, and the two
+# zero-revenue codes are where that gets argued:
+#
+# - **COMP** is a genuine guest paying nothing. The room was occupied by a visitor to the
+#   destination, so it counts (D-QUAL-04, assumption A-02).
+# - **HOUSE** is the property's own use — staff, maintenance, a room taken out for operations. No
+#   visitor, so it does not count (D-QUAL-05).
+#
+# Both are zero-revenue and a revenue-driven export may not distinguish them. When a document uses
+# one label for both, that is not a normalisation problem to solve here — it is a blocking finding,
+# because the two have opposite effects on occupancy and nothing in the data separates them.
+#
+# Matching is case-insensitive, punctuation-insensitive, whitespace-collapsed. An unrecognised code is
+# blocking and never guessed: `CORP2` is not CORP, and a code the property invented for a new channel
+# needs a human to say which side of the qualifying line it falls on.
+
+version: 1.0.0
+clause: D-QUAL-04
+
+rate_codes:
+  BAR:
+    aliases: ["Best Available Rate", "Best Available", RACK, PUBLIC]
+  CORP:
+    aliases: [Corporate, CORPORATE, "Corporate Negotiated", NEG]
+  GOV:
+    aliases: [Government, GOVT, "Government Rate"]
+  OTA:
+    aliases: ["Online Travel Agent", "Online Travel Agency", WHOLESALE, WHL]
+  GROUP:
+    aliases: [GRP, "Group Block", Block, Tour, TOUR]
+  COMP:
+    aliases: [Complimentary, COMPLIMENTARY, "Comp Room", FOC, "Free of Charge"]
+  HOUSE:
+    aliases: ["House Use", "House-Use", HOUSEUSE, HU, Staff, "Staff Room", "Own Use"]

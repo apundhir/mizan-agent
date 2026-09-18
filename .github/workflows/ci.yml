@@ -1,0 +1,119 @@
+name: ci
+
+# Every push to a feature branch, and every PR into develop or main. The job runs the *same*
+# entry point a contributor runs locally — `make ci` — so a green local run that fails here is
+# treated as a bug in its own right rather than something to iterate against by pushing.
+on:
+  push:
+    branches-ignore: [main, develop]
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  # A superseded push is wasted minutes. Cancel it, except on the protected branches where the
+  # record of what was actually verified matters.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
+
+jobs:
+  ci:
+    name: lint · types · guards · policy · tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # No ANTHROPIC_API_KEY, deliberately. The whole pipeline runs in replay mode against
+    # committed cassettes, so CI is offline, free, and byte-reproducible. If a change makes CI
+    # need a key, that change has broken the reproducibility claim and the missing key is the
+    # symptom rather than the problem.
+    env:
+      MIZAN_LLM_PROVIDER: replay
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: make setup
+
+      - name: Lint (ruff check)
+        run: make lint
+
+      - name: Format (ruff format --check)
+        run: make fmt-check
+
+      - name: Types (mypy --strict)
+        run: make types
+
+      # ── the two guards that make ADR-0001 enforceable ────────────────────────
+      # Called out as their own step rather than folded into `make ci` so the failure is
+      # unmissable in the checks list. If a PR turns one of these red, the design is wrong,
+      # not the guard: docs/adr/0001-deterministic-core-agentic-edges.md.
+      - name: Architecture guard (no model client in the deterministic core)
+        run: .venv/bin/python tools/guard/import_guard.py
+
+      - name: Agent schema lint (no numeric fields on agent contracts)
+        run: .venv/bin/python tools/guard/agent_schema_lint.py
+
+      # Its own step because of what a failure means: a credential in a tracked file is compromised
+      # the moment it is pushed, and removing it from a later commit does not unpublish it. A reviewer
+      # scanning the checks list needs to see "rotate the key", not a line inside a test summary.
+      - name: Secret guard (no credential in a tracked file)
+        run: .venv/bin/python tools/guard/secret_guard.py
+
+      - name: Policy validation (schema + referential + semantic + 22 adversarial cases)
+        run: make policy
+
+      # Rebuilds the corpus into a temporary directory and diffs SHA-256 digests against the
+      # committed one. Its own step because the two failure modes need opposite responses: a
+      # generator change that nobody regenerated for (run `make datagen`, commit the result) or a
+      # corpus file edited by hand. The second is the dangerous one — truth_metrics.json would no
+      # longer describe the documents beside it, and every downstream number would be scored
+      # against a fiction. See docs/adr/0003-ledger-first-synthetic-corpus.md.
+      - name: Corpus is byte-reproducible from the generator
+        run: make corpus
+
+      # ── the pipeline gates ──────────────────────────────────────────────────
+      # This block used to assert that `make eval` and `make repro` correctly reported themselves
+      # unimplemented, and would go red if either ever silently exited 0. PRD-94 landed them, so
+      # that assertion is now exactly backwards and is replaced by the real thing.
+      #
+      # Fixtures rebuild before Tests, matching the Makefile's own order (`ci: ... corpus fixtures
+      # fixtures-verify test eval repro`), not the order these steps happen to have been added in.
+      # `make test` now runs eval cases whose input points at a fixture's own workbook (PRD-94's
+      # F4-F6 mapping cases), so the tree has to exist on disk before pytest starts, on a fresh
+      # checkout, or the case fails to open a file that was never built rather than reporting the
+      # cassette miss it exists to test.
+      #
+      # Separate steps rather than one big one, for the same reason the guards are separate: "the
+      # eval regressed" and "a type check failed" need different responses from whoever reads the
+      # checks list, and a single step collapses them into one red tick.
+      - name: Fixtures rebuild from their mutation spec
+        run: make fixtures fixtures-verify
+
+      - name: Tests
+        run: make test
+
+      - name: Eval - every fixture against its derived expectation
+        run: make eval
+
+      - name: Reproducibility - two runs, one verdict
+        run: make repro
+
+      # Uploaded whether or not the eval passed: a scorecard is most useful on the run where
+      # something regressed, and PRD-96's release bundle needs this artefact anyway.
+      - name: Upload the eval scorecard
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: artifacts/eval/
+          if-no-files-found: warn
