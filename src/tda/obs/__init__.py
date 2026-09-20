@@ -8,10 +8,11 @@ anything deriving from `AgentOutput`. **A record of what a call cost is not an a
 Keeping the two apart is what lets that guard stay strict enough to be worth having.
 """
 
-from tda.obs.artifacts import WrittenRun, latest_run, read_run, write_run
+from tda.obs.artifacts import WrittenRun, latest_run, read_routing, read_run, write_run
 from tda.obs.ledger import InputFile, NodeTiming, RunLedger, build_ledger, cost_summary, file_digest
 from tda.obs.nodes import NodeLog, NodeOutcome, NodeRecord, Phase
 from tda.obs.redact import Redaction, redact, scan
+from tda.obs.routing import ROUTING_LOG, RoutingLog, RoutingRecord, routing_records
 from tda.obs.trace import TraceCall, TraceLog, TraceRecord, trace_calls
 from tda.obs.usage import (
     CACHE_READ_PER_MTOK,
@@ -27,6 +28,7 @@ __all__ = [
     "INPUT_PER_MTOK",
     "OUTPUT_PER_MTOK",
     "PRICING_VERSION",
+    "ROUTING_LOG",
     "AgentUsage",
     "InputFile",
     "NodeLog",
@@ -35,6 +37,8 @@ __all__ = [
     "NodeTiming",
     "Phase",
     "Redaction",
+    "RoutingLog",
+    "RoutingRecord",
     "RunLedger",
     "TraceCall",
     "TraceLog",
@@ -45,8 +49,10 @@ __all__ = [
     "cost_summary",
     "file_digest",
     "latest_run",
+    "read_routing",
     "read_run",
     "redact",
+    "routing_records",
     "scan",
     "trace_calls",
     "write_run",

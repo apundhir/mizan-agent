@@ -17,6 +17,7 @@ actually reach a reviewer.
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -41,6 +42,7 @@ from tda.agents.contracts import (
 from tda.agents.critic import grade, render_case
 from tda.agents.narrative import build_registry as narrative_registry
 from tda.agents.narrative import narrate, read_finding
+from tda.agents.prompts.registry import PromptRegistry
 from tda.agents.provider import Effort, Message, ProviderError, StubProvider
 from tda.agents.resolution import (
     Candidate,
@@ -67,6 +69,9 @@ from tda.contracts import (
 )
 from tda.obs import TraceLog, TraceRecord, UsageLedger
 from tda.policy import Policy, load_policy
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 PDF = PdfRef(file="2026-01.pdf", page=3, row_start=12, row_end=12)
 XL = ExcelRef(sheet="Nationality", cell="D14")
@@ -362,6 +367,104 @@ def test_refused_tool_calls_reach_the_trace(policy: Policy) -> None:
     runner.run(spec, [Message(role="user", content="go")], session=session)
 
     assert runner.trace[0].refused_tools == ("read_values",)
+
+
+# ── the runner routes through a bound supervisor ─────────────────────────────
+
+
+def test_a_runner_with_no_supervisor_routes_nothing(policy: Policy) -> None:
+    """The default: `AgentRunner(...)` with no `supervisor=` keyword. Reviewer-assist, narrative
+    grading and every existing caller construct a runner this way, and none of them should have to
+    start carrying a budget just because one now exists."""
+    runner = runner_for(policy, a_narrative())
+    assert runner.supervisor is None
+
+    result = runner.run(
+        AgentSpec.from_policy(NARRATIVE, FindingNarrative, policy),
+        [Message(role="user", content="go")],
+    )
+
+    assert result.output.is_answer
+
+
+def test_every_model_call_is_granted_by_a_bound_supervisor_first(policy: Policy) -> None:
+    runner = runner_for(policy, a_narrative())
+    runner.supervisor = Supervisor()
+    runner.node = "publish"
+    spec = AgentSpec.from_policy(NARRATIVE, FindingNarrative, policy)
+
+    runner.run(spec, [Message(role="user", content="go")])
+
+    decisions = runner.supervisor.decisions
+    assert len(decisions) == 1
+    assert decisions[0].node == "publish"
+    assert decisions[0].agent == spec.name
+    assert decisions[0].granted
+    assert decisions[0].reason == "FindingNarrative requested at publish"
+
+
+def test_a_spent_budget_refuses_the_call_before_the_provider_is_asked(policy: Policy) -> None:
+    """The call never reaches the provider - the registered stub answer is never consumed - and
+    the refusal is recorded exactly as a provider failure would be: same trace shape, same
+    cassette key, so a reader cannot tell a refused call from a failed one without reading why."""
+    runner = runner_for(policy, a_narrative())
+    runner.supervisor = Supervisor(budget=Budget(max_calls_per_run=60, max_calls_per_agent=0))
+    runner.node = "publish"
+    spec = AgentSpec.from_policy(NARRATIVE, FindingNarrative, policy)
+
+    with pytest.raises(BudgetExceededError, match="per-agent limit of 0"):
+        runner.run(spec, [Message(role="user", content="go")])
+
+    assert len(runner.trace) == 1
+    record = runner.trace[0]
+    assert record.failed
+    assert record.cassette_key != ""
+    assert "BudgetExceededError" in (record.error or "")
+    assert runner.supervisor.decisions[-1].disposition is Disposition.REFUSED_BUDGET
+    # `.calls` is the stub's own record of what it was asked to serve. Empty means the request
+    # never reached the provider at all - the refusal happened one step earlier.
+    assert runner.provider.calls == []  # type: ignore[attr-defined]
+
+
+def test_an_agent_the_roster_does_not_know_is_refused_by_the_supervisor(
+    policy: Policy, tmp_path: Path
+) -> None:
+    """`route()` returns a refused decision rather than raising for an unknown agent - the runner
+    is what turns that into something the caller sees, the same way it turns a raised budget error
+    into one.
+
+    A wiring defect, not a real agent: `AgentSpec.from_policy` and the roster agree by construction
+    (`test_every_roster_agent_is_configured_in_policy`), so reaching this branch through `run()`
+    needs a name with a real prompt on disk that the roster has never heard of - a private
+    `PromptRegistry` root makes that possible without inventing a seventh agent in the repository.
+    """
+    (tmp_path / "invented").mkdir()
+    (tmp_path / "invented" / "v1.md").write_text("a prompt for an agent nobody registered")
+
+    runner = AgentRunner(
+        StubProvider(),
+        policy=policy,
+        registry=echo_registry(),
+        trace=TraceLog(),
+        usage=UsageLedger(),
+        prompts=PromptRegistry(root=tmp_path),
+    )
+    runner.supervisor = Supervisor()
+    runner.node = "publish"
+    spec = AgentSpec(
+        name="invented",
+        prompt_version="v1",
+        output_type=FindingNarrative,
+        tools=frozenset(),
+        effort=Effort.HIGH,
+    )
+
+    with pytest.raises(AgentError, match="refused by the supervisor"):
+        runner.run(spec, [Message(role="user", content="go")])
+
+    assert runner.supervisor.decisions[-1].disposition is Disposition.REFUSED_UNKNOWN_AGENT
+    assert len(runner.trace) == 1
+    assert runner.trace[0].failed
 
 
 def test_usage_is_tallied_per_agent(policy: Policy) -> None:

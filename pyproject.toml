@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mizan"
-version = "0.5.2"
+version = "0.6.0"
 description = "Agentic reconciliation and verification system (POC) - deterministic core, agentic edges"
 requires-python = ">=3.12"
 license = { text = "Apache-2.0" }
@@ -25,7 +25,11 @@ agents  = ["anthropic>=0.69", "langgraph>=0.2"]
 # The screen renders the evidence itself - a PDF page crop and a workbook cell - so it needs the
 # readers, not just the UI. Installing `[review]` alone and finding out at the first finding
 # that pdfplumber is missing is a worse discovery than a slightly heavier extra.
-review  = ["streamlit>=1.39", "pdfplumber>=0.11", "openpyxl>=3.1", "pillow>=10.0"]
+#
+# `defusedxml` guards the Run console's upload path specifically: a viewer-supplied .xlsx is a
+# zip of XML that openpyxl parses, and the console is the first place in this codebase that opens
+# a workbook nobody here authored.
+review  = ["streamlit>=1.39", "pdfplumber>=0.11", "openpyxl>=3.1", "pillow>=10.0", "defusedxml>=0.7"]
 datagen = ["reportlab>=4.2", "openpyxl>=3.1"]
 dev = [
   "pytest>=8.3",
@@ -121,7 +125,7 @@ warn_no_return = true
 disallow_any_explicit = false      # jsonschema and yaml return Any at the boundary
 plugins = ["pydantic.mypy"]
 mypy_path = "src:tools"
-files = ["src", "tools", "tests"]
+files = ["src", "tools", "tests", "streamlit_app.py"]
 # The arch fixtures are deliberately-broken *data*, not source. They exist to be rejected by the
 # guards, several share module names on purpose, and one imports a package that is not installed.
 # Type-checking them would be checking the contents of a test case.

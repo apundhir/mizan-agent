@@ -1,0 +1,17 @@
+# Streamlit Community Cloud installs from this file, not from `pyproject.toml` - the platform has
+# no `pip install -e .` step, so every runtime dependency the hosted app needs (the pipeline, the
+# extract and output extras, the agents extra, the review extra, and `defusedxml` for untrusted
+# uploads) has to be named explicitly here. Floors match `pyproject.toml`; a drift test
+# (`tests/unit/test_packaging.py`) checks the two stay in step.
+pydantic>=2.9
+pyyaml>=6.0
+jsonschema>=4.23
+pdfplumber>=0.11
+openpyxl>=3.1
+python-docx>=1.1
+anthropic>=0.69
+langgraph>=0.2
+streamlit>=1.39
+pillow>=10.0
+reportlab>=4.2
+defusedxml>=0.7

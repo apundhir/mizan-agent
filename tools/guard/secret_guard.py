@@ -95,6 +95,23 @@ PATTERNS: Final[tuple[Pattern, ...]] = (
     ),
 )
 
+# Fires on the file's own path, whatever it contains. The Run console (v0.6.0) reads
+# ANTHROPIC_API_KEY through Streamlit Community Cloud secrets, which a developer testing that
+# locally holds in `.streamlit/secrets.toml` - a file that exists to hold a credential and must
+# never be tracked, empty or not. Separate from PATTERNS because it checks a name, not a line.
+PATH_PATTERNS: Final[tuple[Pattern, ...]] = (
+    Pattern(
+        name="tracked secrets file",
+        regex=re.compile(r"(?:^|/)(?:secrets\.toml|\.env|\.env\.(?!example$)[^/]+)$"),
+        advice=(
+            "This file exists to hold credentials and must never be tracked, whatever it contains "
+            "today. Add it to .gitignore, `git rm --cached` it, and if it ever held a key, rotate "
+            "that key - git history is not unpublished by a later commit. On Streamlit Community "
+            "Cloud the contents belong in the app's Secrets settings, not in a file."
+        ),
+    ),
+)
+
 # Binary and generated files where a match would be a false positive or unreadable anyway.
 SKIP_SUFFIXES: Final[frozenset[str]] = frozenset(
     {".pdf", ".xlsx", ".png", ".jpg", ".jpeg", ".gif", ".ico", ".woff", ".woff2", ".zip"}
@@ -111,7 +128,9 @@ class Finding:
     pattern: Pattern
 
     def render(self) -> str:
-        return f"  {self.path}:{self.line}  {self.pattern.name}\n      {self.pattern.advice}"
+        # A path-pattern finding has no line - the whole file is the finding, not one line of it.
+        location = f"{self.path}:{self.line}" if self.line else str(self.path)
+        return f"  {location}  {self.pattern.name}\n      {self.pattern.advice}"
 
 
 def tracked_files(root: Path) -> list[Path]:
@@ -139,7 +158,17 @@ def scan(root: Path) -> list[Finding]:
     findings: list[Finding] = []
 
     for relative in tracked_files(root):
-        if relative == SELF or relative.suffix.lower() in SKIP_SUFFIXES:
+        if relative == SELF:
+            continue
+
+        posix = relative.as_posix()
+        findings.extend(
+            Finding(path=relative, line=0, pattern=pattern)
+            for pattern in PATH_PATTERNS
+            if pattern.regex.search(posix)
+        )
+
+        if relative.suffix.lower() in SKIP_SUFFIXES:
             continue
         try:
             text = (root / relative).read_text(encoding="utf-8")

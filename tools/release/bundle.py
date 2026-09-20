@@ -81,7 +81,14 @@ MANIFEST_FILE: Final = "MANIFEST.json"
 
 # Every file `mizan run` writes that this bundle refuses to ship without. The annotated workbook's
 # name depends on the submitted file, so it is found by pattern rather than listed here.
-RUN_FILES: Final = ("verdict.json", "memo.docx", "run.json", "trace.jsonl", "nodes.jsonl")
+RUN_FILES: Final = (
+    "verdict.json",
+    "memo.docx",
+    "run.json",
+    "trace.jsonl",
+    "nodes.jsonl",
+    "routing.jsonl",
+)
 
 OK: Final = 0
 COULD_NOT_BUILD: Final = 2

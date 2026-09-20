@@ -36,11 +36,15 @@ from pydantic import BaseModel, Field
 
 from tda.excel.tools import digest
 from tda.obs import (
+    ROUTING_LOG,
     InputFile,
     NodeLog,
     NodeOutcome,
     NodeRecord,
     Phase,
+    Redaction,
+    RoutingLog,
+    RoutingRecord,
     RunLedger,
     TraceCall,
     TraceLog,
@@ -50,8 +54,10 @@ from tda.obs import (
     cost_summary,
     file_digest,
     latest_run,
+    read_routing,
     read_run,
     redact,
+    routing_records,
     scan,
     write_run,
 )
@@ -72,6 +78,10 @@ SUBMISSION = CORPUS / "submission"
 # repository do not both have to carry an exception for this file.
 CONTACT = "Prepared by " + "Ms" + ". Jane Doe, jane.doe" + "@" + "hotel.ae, " + "+971 50 123 4567"
 
+# Same construction as tests/arch/test_guards.py's PLANTED_KEY: assembled at runtime so the guard
+# scanning this very file never sees a matchable literal.
+PLANTED_KEY = "sk-ant-api03-" + "EXAMPLE" * 4
+
 
 def trace_record(**overrides: object) -> TraceRecord:
     """One valid trace record, with the fields a test does not care about already filled."""
@@ -87,6 +97,18 @@ def trace_record(**overrides: object) -> TraceRecord:
     }
     fields.update(overrides)
     return TraceRecord.model_validate(fields)
+
+
+def routing_record(**overrides: object) -> RoutingRecord:
+    """One valid routing record, with the fields a test does not care about already filled."""
+    fields: dict[str, object] = {
+        "node": "claim_parse",
+        "agent": "mapping",
+        "disposition": "granted",
+        "reason": "WorkbookMapping requested at claim_parse",
+    }
+    fields.update(overrides)
+    return RoutingRecord.model_validate(fields)
 
 
 def node_log(*nodes: tuple[str, NodeOutcome | None], duration_ms: int = 7) -> NodeLog:
@@ -390,6 +412,29 @@ def test_personal_data_is_redacted_before_it_is_written_and_the_count_is_kept(
     assert dict(recorded.redactions) == {"email": 1, "phone": 1, "titled_name": 1}
 
 
+def test_a_key_typed_into_a_workbook_cell_never_reaches_an_artifact(tmp_path: Path) -> None:
+    """The Run console accepts uploads and questions from whoever holds its link, so a credential
+    can arrive the same way a phone number does - typed by a person, not written by this system.
+    Same shape as the personal-data claim above, for a pattern that is not personal data."""
+    leaked = json.dumps({"unmapped": [{"sheet": "Notes", "cells": "A1", "reason": PLANTED_KEY}]})
+    trace = TraceLog([trace_record(output_json=leaked)])
+    nodes = node_log(("claim_parse", NodeOutcome.OK))
+
+    written = write_run(tmp_path, ledger_for(nodes), trace, nodes)
+
+    for path in written.files:
+        assert PLANTED_KEY not in path.read_text(encoding="utf-8")
+    assert dict(written.redaction.counts) == {"api_key": 1}
+    assert "[redacted:api_key]" in written.trace.read_text(encoding="utf-8")
+
+    recorded, _, _ = read_run(written.directory)
+    assert dict(recorded.redactions) == {"api_key": 1}
+
+
+def test_the_key_placeholder_is_itself_inert() -> None:
+    assert redact("[redacted:api_key]") == ("[redacted:api_key]", Redaction())
+
+
 def test_the_recorded_counts_never_carry_the_content_they_counted() -> None:
     """A ledger field listing the phone numbers it redacted from the trace is a ledger that leaks
     them. The counts are a count and a kind, and nothing else."""
@@ -412,6 +457,8 @@ def test_the_recorded_counts_never_carry_the_content_they_counted() -> None:
         "1,285 room nights at 71.2%",
         "ADR 412.50 AED",
         "2026-01-31",
+        "sk-ant-xxx",
+        "see .env.example for ANTHROPIC_API_KEY",
     ],
 )
 def test_the_patterns_do_not_fire_on_ordinary_workbook_text(innocent: str) -> None:
@@ -451,12 +498,108 @@ def test_a_clean_run_redacts_nothing_and_says_so(tmp_path: Path) -> None:
 
 
 def test_a_run_writes_three_files_under_its_own_id(tmp_path: Path) -> None:
+    """No `routing` argument, the pre-v0.6.0 shape. A caller with no supervisor to report on still
+    gets exactly what `write_run` always wrote."""
     nodes = node_log(("intake", NodeOutcome.OK))
     written = write_run(tmp_path, ledger_for(nodes), TraceLog([trace_record()]), nodes)
 
-    assert written.directory == tmp_path / "run-0123456789ab"
+    assert written.routing is None
+    assert written.files == (written.ledger, written.trace, written.nodes)
     assert sorted(p.name for p in tmp_path.rglob("*") if p.is_file()) == sorted(
         [RUN_LEDGER, AGENT_TRACE, NODE_LOG]
+    )
+
+
+# ── the fourth file: routing decisions ───────────────────────────────────────
+
+
+def test_a_run_given_routing_writes_a_fourth_file(tmp_path: Path) -> None:
+    nodes = node_log(("claim_parse", NodeOutcome.OK))
+    routing = RoutingLog([routing_record()])
+
+    written = write_run(tmp_path, ledger_for(nodes), TraceLog([trace_record()]), nodes, routing)
+
+    assert written.routing == written.directory / ROUTING_LOG
+    assert written.files == (written.ledger, written.trace, written.nodes, written.routing)
+    assert sorted(p.name for p in tmp_path.rglob("*") if p.is_file()) == sorted(
+        [RUN_LEDGER, AGENT_TRACE, NODE_LOG, ROUTING_LOG]
+    )
+    assert written.routing.read_text(encoding="utf-8").strip() == routing_record().model_dump_json()
+
+
+def test_an_empty_routing_log_is_still_written_rather_than_skipped(tmp_path: Path) -> None:
+    """A run that made no model calls (rejected at intake, say) still hands `write_run` a
+    `RoutingLog` with nothing in it. That is a fact - the supervisor was never asked - and it is
+    written down rather than treated as equivalent to no supervisor being wired at all."""
+    nodes = node_log(("intake", NodeOutcome.OK))
+    written = write_run(tmp_path, ledger_for(nodes), TraceLog(), nodes, RoutingLog())
+
+    assert written.routing is not None
+    assert written.routing.read_text(encoding="utf-8") == ""
+
+
+def test_the_routing_log_is_redacted_like_every_other_file(tmp_path: Path) -> None:
+    routing = RoutingLog([routing_record(reason=f"outside the roster: {CONTACT}")])
+    nodes = node_log(("claim_parse", NodeOutcome.OK))
+
+    written = write_run(tmp_path, ledger_for(nodes), TraceLog([trace_record()]), nodes, routing)
+
+    assert written.routing is not None
+    text = written.routing.read_text(encoding="utf-8")
+    assert "jane.doe" not in text
+    assert "[redacted:email]" in text
+    assert dict(written.redaction.counts) == {"email": 1, "phone": 1, "titled_name": 1}
+
+
+def test_read_routing_on_a_run_with_no_routing_log_reads_as_empty_not_as_broken(
+    tmp_path: Path,
+) -> None:
+    """`trace.jsonl` and `nodes.jsonl` are required on read; an absent one means the directory was
+    truncated. `routing.jsonl` is different: a run written before v0.6.0 has nothing wrong with it,
+    only nothing to say here, so an absent file reads as an empty log rather than an error."""
+    nodes = node_log(("intake", NodeOutcome.OK))
+    written = write_run(tmp_path, ledger_for(nodes), TraceLog([trace_record()]), nodes)
+
+    log = read_routing(written.directory)
+
+    assert log.records == ()
+
+
+def test_a_written_routing_log_reads_back_in_order(tmp_path: Path) -> None:
+    routing = RoutingLog(
+        [
+            routing_record(agent="mapping", disposition="granted"),
+            routing_record(
+                agent="resolution", disposition="skipped", reason="every label resolved"
+            ),
+        ]
+    )
+    nodes = node_log(("claim_parse", NodeOutcome.OK))
+    written = write_run(tmp_path, ledger_for(nodes), TraceLog([trace_record()]), nodes, routing)
+
+    log = read_routing(written.directory)
+
+    assert [r.agent for r in log.records] == ["mapping", "resolution"]
+    assert log.refusals() == ()
+
+
+def test_routing_records_converts_by_duck_typing_not_by_importing_the_supervisor() -> None:
+    """`tda.obs` must not import `tda.agents`. A stand-in with the same four attributes proves the
+    conversion works without either module knowing about the other."""
+
+    class FakeDecision:
+        def __init__(self, node: str, agent: str, disposition: str, reason: str) -> None:
+            self.node = node
+            self.agent = agent
+            self.disposition = disposition
+            self.reason = reason
+
+    log = routing_records([FakeDecision("claim_parse", "mapping", "granted", "requested")])
+
+    assert log.records == (
+        RoutingRecord(
+            node="claim_parse", agent="mapping", disposition="granted", reason="requested"
+        ),
     )
 
 

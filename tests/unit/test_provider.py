@@ -475,7 +475,7 @@ def test_only_the_recorder_reads_dotenv() -> None:
     `make ci` depend on an untracked file - the opposite of what this repo claims."""
     probe = (
         "import os, sys; os.environ.pop('ANTHROPIC_API_KEY', None);"
-        "import tda.agents.provider, tda.agents.runtime, tda.excel;"
+        "import tda.agents.provider, tda.agents.runtime, tda.excel, tda.review.live, tda.review.app;"
         "sys.exit(1 if os.environ.get('ANTHROPIC_API_KEY') else 0)"
     )
     result = subprocess.run(
@@ -484,6 +484,35 @@ def test_only_the_recorder_reads_dotenv() -> None:
         capture_output=True,
         cwd=Path(__file__).resolve().parents[2],
         env={**os.environ, "PYTHONPATH": "src"},
+    )
+
+    assert result.returncode == 0, result.stderr.decode()
+
+
+def test_selecting_live_while_disabled_raises_before_any_sdk_import() -> None:
+    """The refusal happens before `build_provider("anthropic")` is even called - not merely before
+    a network request. A clean interpreter proves it: after the refusal, neither the anthropic SDK
+    nor the adapter module that would import it has ever been touched."""
+    probe = (
+        "import sys;"
+        "from tda.review.live import LiveModeError, live_gate;"
+        "gate = live_gate({});"
+        "raised = False\n"
+        "try:\n"
+        "    gate.provider_for('anthropic')\n"
+        "except LiveModeError:\n"
+        "    raised = True\n"
+        "assert raised, 'provider_for did not refuse'\n"
+        "assert 'anthropic' not in sys.modules\n"
+        "assert 'tda.agents.provider.anthropic_client' not in sys.modules\n"
+        "sys.exit(0)"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", probe],
+        check=False,
+        capture_output=True,
+        cwd=Path(__file__).resolve().parents[2],
+        env={**os.environ, "PYTHONPATH": "src", "MIZAN_LIVE_MODE": ""},
     )
 
     assert result.returncode == 0, result.stderr.decode()

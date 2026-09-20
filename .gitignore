@@ -27,6 +27,7 @@ corpus/fixtures/
 .env
 .env.*
 !.env.example
+.streamlit/secrets.toml
 
 # Editors / OS
 .DS_Store

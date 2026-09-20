@@ -55,7 +55,7 @@ from tda.agents.provider import ProviderError, ReplayProvider
 from tda.cli import DEMO_SUBMISSION, declaration_from_manifest
 from tda.contracts import Period, VerdictStatus
 from tda.graph import RunContext, new_run_id, verify_directory
-from tda.obs import RunLedger, build_ledger, write_run
+from tda.obs import ROUTING_LOG, RunLedger, build_ledger, routing_records, write_run
 from tda.obs.artifacts import RUN_LEDGER
 from tda.obs.repro import strip_volatile, volatile_paths
 from tda.outputs import MEMO_FILE, VERDICT_FILE, VerdictDocument, read_verdict, write_outputs
@@ -129,6 +129,7 @@ def run_once(
         ),
         context.trace,
         result.nodes,
+        routing_records(context.supervisor.decisions),
     )
     directory = root / run_id
     write_outputs(directory, verdict, result.state.claims, result.state.submission.workbook)
@@ -227,16 +228,25 @@ def differing_paths(left: object, right: object, *, path: str = "") -> list[str]
 
 
 def digest_artefacts(directory: Path) -> dict[str, str]:
-    """A digest per artefact in one run directory: the verdict, the ledger, the memo, the workbook.
+    """A digest per artefact in one run directory: the verdict, the ledger, the memo, the routing
+    log where one was written, the workbook.
 
-    Raw bytes for three of them. `run.json` is digested from its stripped payload instead, because
-    three of its fields are wall clock by design; see the module docstring.
+    Raw bytes for the verdict, the memo and the routing log. `run.json` is digested from its
+    stripped payload instead, because three of its fields are wall clock by design; see the module
+    docstring. `routing.jsonl` carries no wall-clock field at all (a decision is node, agent,
+    disposition and reason, nothing timed), so two replay runs of one submission must produce it
+    byte-identical - when both wrote one. It is optional here for the same reason it is optional on
+    read (`tda.obs.artifacts.read_routing`): a run directory built by hand, or written before
+    v0.6.0, has nothing wrong with it, only nothing to compare on this one file.
     """
     digests = {
         VERDICT_FILE: _digest((directory / VERDICT_FILE).read_bytes()),
         MEMO_FILE: _digest((directory / MEMO_FILE).read_bytes()),
         LEDGER_LABEL: _digest(_stable_ledger(directory / RUN_LEDGER)),
     }
+    routing_path = directory / ROUTING_LOG
+    if routing_path.is_file():
+        digests[ROUTING_LOG] = _digest(routing_path.read_bytes())
     for workbook in sorted(directory.glob("annotated_*.xlsx")):
         digests[workbook.name] = _digest(workbook.read_bytes())
     return digests

@@ -39,7 +39,8 @@ from typing import TYPE_CHECKING
 import pytest
 from tests.fixtures.workbook import demo_mapping
 
-from tda.agents.provider import ProviderMode, ReplayProvider, StubProvider
+from tda.agents import BudgetExceededError
+from tda.agents.provider import ProviderError, ProviderMode, ReplayProvider, StubProvider
 from tda.cli import COULD_NOT_RUN, FINDINGS, OK, declaration_from_manifest, report_failure
 from tda.cli import main as cli_main
 from tda.contracts import Finding, Period, RejectionReason, Severity, VerdictStatus
@@ -61,6 +62,7 @@ from tda.graph import (
 from tda.obs import NodeOutcome, NodeRecord, Phase
 from tda.obs.nodes import NodeLog
 from tda.policy import Policy, load_policy
+from tda.policy.loader import Budget
 
 if TYPE_CHECKING:
     from tda.graph.run import RunResult
@@ -124,6 +126,58 @@ def test_every_node_runs_in_order_on_a_clean_submission(policy: Policy, period: 
     assert result.nodes.entered() == NODE_ORDER
     assert result.nodes.completed() == NODE_ORDER
     assert result.nodes.unfinished() == ()
+
+
+def test_a_clean_run_records_one_granted_routing_decision_per_model_call(
+    policy: Policy, period: Period
+) -> None:
+    """The supervisor built in `RunContext.build` is on the call path, not a bystander: the one
+    model call this pipeline makes (mapping, at `claim_parse`) goes through `route()` first, and
+    the decision it produces is what `routing.jsonl` will carry."""
+    result = run_demo(policy, period)
+
+    decisions = result.context.supervisor.decisions
+    assert len(decisions) == len(result.context.trace) == 1
+    assert decisions[0].node == "claim_parse"
+    assert decisions[0].agent == "mapping"
+    assert decisions[0].granted
+
+
+def test_a_spent_budget_refuses_the_mapping_call_and_fails_the_node(
+    policy: Policy, period: Period
+) -> None:
+    """Exhaustion is a refusal, not a truncation (PRD-88). With the mapping agent's own per-agent
+    cap set to zero, `claim_parse` never gets to call it: the supervisor raises before the request
+    reaches the provider, the node records `FAILED` rather than `OK`, and the run stops there
+    rather than producing a verdict a reviewer would mistake for a complete one."""
+    starved = policy.model_copy(
+        update={
+            "model": policy.model.model_copy(
+                update={"budget": Budget(max_calls_per_run=60, max_calls_per_agent=0)}
+            )
+        }
+    )
+    context = RunContext.build(starved, period, stub())
+
+    with pytest.raises(BudgetExceededError, match="per-agent limit of 0"):
+        verify_directory(SUBMISSION, HOTEL, period, starved, stub(), context=context)
+
+    # `_guard` writes the exit record before re-raising, so this node did not simply vanish - it
+    # left, and the reason it left is on the record.
+    assert context.nodes.unfinished() == ()
+    exit_record = next(
+        r for r in context.nodes.records if r.node == "claim_parse" and r.phase is Phase.EXIT
+    )
+    assert exit_record.outcome is NodeOutcome.FAILED
+    assert "BudgetExceededError" in (exit_record.detail or "")
+
+    decisions = context.supervisor.decisions
+    assert decisions[-1].node == "claim_parse"
+    assert decisions[-1].agent == "mapping"
+    assert not decisions[-1].granted
+    assert len(context.trace) == 1
+    assert context.trace.records[0].failed
+    assert "BudgetExceededError" in (context.trace.records[0].error or "")
 
 
 def test_the_verdict_stamps_every_ruleset_that_produced_it(policy: Policy, period: Period) -> None:
@@ -458,12 +512,15 @@ def test_a_run_writes_its_artifacts_and_trace_reads_them_back(
 
     directories = [d for d in artifacts.iterdir() if d.is_dir()]
     assert len(directories) == 1
-    # The observability artifacts and the officer's three, in one directory. There is no annotated
-    # workbook here on purpose: this submission is empty, so there was never a workbook to copy,
-    # and an empty annotated file would be a lie about what was checked.
+    # The four observability artifacts and the officer's two, in one directory. There is no
+    # annotated workbook here on purpose: this submission is empty, so there was never a workbook
+    # to copy, and an empty annotated file would be a lie about what was checked. `routing.jsonl`
+    # is written even though this run rejects at intake and routes nothing - an empty routing log
+    # is still a fact worth writing rather than a file quietly skipped.
     assert sorted(p.name for p in directories[0].iterdir()) == [
         "memo.docx",
         "nodes.jsonl",
+        "routing.jsonl",
         "run.json",
         "trace.jsonl",
         "verdict.json",
@@ -530,6 +587,7 @@ def test_a_run_that_dies_still_writes_its_artifacts(
     assert len(directories) == 1
     assert sorted(p.name for p in directories[0].iterdir()) == [
         "nodes.jsonl",
+        "routing.jsonl",
         "run.json",
         "trace.jsonl",
     ]
@@ -549,6 +607,47 @@ def test_a_run_that_dies_still_writes_its_artifacts(
     # node, silently.
     assert "mapping/v1" in tree
     assert "could not be attributed" not in tree
+
+
+def test_a_second_exception_while_writing_the_failure_record_still_exits_could_not_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A real bug, found verifying `tda.review.sandbox`'s memory ceiling on Linux, not simulated
+    for this test alone: a sandboxed run's own `MemoryError` reached this failure path cleanly,
+    then *building the failure ledger* - digesting every input file - threw a second `MemoryError`
+    once `RLIMIT_AS` was already essentially spent, unhandled, exiting with Python's own default
+    code for an uncaught exception (`1`) - indistinguishable, to anything reading the exit code,
+    from `FINDINGS`, a real verdict a human must read, which it was not. `failure_ledger` is
+    monkeypatched to raise here because reproducing the real trigger needs an actual memory-limited
+    subprocess (`tests/unit/test_sandbox.py` does that); what this test pins is the property that
+    must hold regardless of which exception hits this second `try`."""
+    monkeypatch.setattr(
+        "tda.cli.build_provider",
+        lambda _name: ReplayProvider(cassette_dir=tmp_path / "no-cassettes-here"),
+    )
+
+    def _raises(**_kwargs: object) -> None:
+        raise MemoryError
+
+    monkeypatch.setattr("tda.cli.failure_ledger", _raises)
+
+    code = cli_main(
+        [
+            "run",
+            str(SUBMISSION),
+            "--hotel",
+            HOTEL,
+            "--period",
+            "2026-Q1",
+            "--provider",
+            ProviderMode.REPLAY.value,
+            "--artifacts",
+            str(tmp_path / "artifacts"),
+        ]
+    )
+
+    assert code == COULD_NOT_RUN
+    assert "could not write this run's own failure record" in capsys.readouterr().err
 
 
 def test_the_failure_message_is_redacted_like_every_other_channel(
@@ -574,6 +673,22 @@ def test_the_failure_message_is_redacted_like_every_other_channel(
     assert "DOE/JANE" not in errors
     assert "[redacted:slashed_name]" in errors
     assert "stopped inside" not in errors  # the node did leave; only the reason was redacted
+
+
+def test_a_key_in_a_provider_failure_message_is_redacted_before_the_terminal_sees_it(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The realistic leak route for a credential is not this system writing one - it is an SDK
+    error message quoting a header, or a person pasting one into a question that then fails. Either
+    way, the terminal must not be the one channel that shows it in the clear."""
+    planted = "sk-ant-api03-" + "EXAMPLE" * 4
+    context = RunContext.build(load_policy(), Period.parse("2026-Q1"), stub())
+
+    report_failure(ProviderError(f"401 unauthorized for key {planted}"), context)
+
+    errors = capsys.readouterr().err
+    assert planted not in errors
+    assert "[redacted:api_key]" in errors
 
 
 def test_the_trace_command_says_so_when_there_is_nothing_to_read(tmp_path: Path) -> None:

@@ -61,8 +61,9 @@ from __future__ import annotations
 import json
 import os
 from decimal import Decimal, InvalidOperation
+from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 import streamlit as st
 
@@ -71,23 +72,14 @@ from tda.obs.artifacts import RUN_LEDGER, latest_run
 from tda.obs.ledger import RunLedger
 from tda.outputs.verdict import VERDICT_FILE, read_verdict
 from tda.policy import load_policy
+from tda.review import ui
 from tda.review.assist import MAX_QUESTION, Answer, AskResult, put_question
 from tda.review.decisions import Recorded, ReviewError, record_decision, superseded
 from tda.review.evidence import Evidence, evidence_for
-from tda.review.present import (
-    answer_citations,
-    cause_line,
-    cell_table,
-    chip_colour,
-    citations,
-    decision_summary,
-    figures,
-    headline,
-    unavailable_line,
-)
+from tda.review.present import answer_citations, decision_summary, unavailable_line
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
 
     from tda.agents.provider import LLMProvider
     from tda.contracts import Finding
@@ -95,12 +87,107 @@ if TYPE_CHECKING:
     from tda.outputs.verdict import VerdictDocument
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-ARTIFACTS = Path(os.environ.get("MIZAN_ARTIFACTS", REPO_ROOT / "artifacts"))
-SUBMISSION = Path(os.environ.get("MIZAN_SUBMISSION", REPO_ROOT / "corpus" / "demo" / "submission"))
+
+# Every run this browser session has itself made (started via the console, or opened by an exact
+# id). Read by the fallback run picker below and by the console's own replay panel, so neither
+# lists a run this session never touched unless the deployment has explicitly said every run on
+# disk belongs to one trusted operator.
+SESSION_KNOWN_RUNS: Final = "review.known_runs"
+
+SINGLE_OPERATOR_ENV: Final = "MIZAN_SINGLE_OPERATOR"
 
 
-def main() -> None:
-    st.set_page_config(page_title="Mizan — verification review", layout="wide")
+def single_operator(environ: Mapping[str, str] | None = None) -> bool:
+    """Whether every run under `ARTIFACTS` belongs to one trusted person, so any of them may be
+    listed and opened by whoever is looking - one officer's own machine, the Docker `review`
+    service, `make review` run locally.
+
+    Off unless told otherwise, the same direction `tda.review.live`'s gate defaults in: a hosted
+    process is reachable by whoever holds the app's link, often several people at once who do not
+    trust each other, and a run picker that shows every viewer's uploads to every other viewer is
+    a disclosure this codebase must not make by default. `docker/compose.yaml`'s `review` service
+    and the local `make review`/`make review-live` targets set this explicitly to `true`; nothing
+    in `.streamlit/secrets.example.toml` does, on purpose - a hosted deployment that forgets to
+    set it gets the restricted behaviour, never the open one.
+    """
+    env = environ if environ is not None else os.environ
+    return env.get(SINGLE_OPERATOR_ENV, "").strip().lower() == "true"
+
+
+UPLOAD_ENABLED_ENV: Final = "MIZAN_UPLOAD_ENABLED"
+
+
+def uploads_enabled(environ: Mapping[str, str] | None = None) -> bool:
+    """Whether the console offers to verify a viewer's own files, rather than prepared scenes only.
+
+    Off unless told otherwise, for the same reason `single_operator` above is: a prepared scene is
+    this repository's own committed corpus, an input trusted since M2, while an upload is the one
+    input this codebase has never authored. Six rounds of security review went into containing what
+    a hostile `.xlsx` can cost (`tda.review.sandbox`, ADR-0010 §7), and every one of those rounds
+    stays in the codebase and under test. This flag decides whether that path is *reachable*, which
+    is a question about who can reach the deployment rather than about how well the path is
+    defended.
+
+    A public link is reachable by anyone who has it, and the five scenes are what that audience
+    came to see, so the hosted demo runs with this unset and never spawns a child process at all.
+    `docker/compose.yaml`'s `review` service and the local `make review`/`make review-live` targets
+    set it to `true`; nothing in `.streamlit/secrets.example.toml` does, on purpose, so a hosted
+    deployment that forgets it gets the scenes-only behaviour rather than the open one.
+
+    Parsed the lenient way `single_operator` is, not the raising way `tda.review.live` parses its
+    own variables: a typo here should fail closed, and closed is the safe state.
+    """
+    env = environ if environ is not None else os.environ
+    return env.get(UPLOAD_ENABLED_ENV, "").strip().lower() == "true"
+
+
+def env_path(name: str, default: Path) -> Path:
+    """An environment variable read as a path, with unset and blank treated the same.
+
+    `make review` used to export `MIZAN_SUBMISSION=` with nothing after the `=` when the caller
+    left it unspecified, and a plain lookup with a fallback returns that empty string rather than
+    the fallback - the variable exists, it is just empty. `Path("")` is `Path(".")`, which pointed
+    the whole screen at the repository root. Treating a blank value as unset is the fix, here
+    rather than in the Makefile, so every reader of the variable gets it rather than one call site.
+    """
+    value = os.environ.get(name, "").strip()
+    return Path(value) if value else default
+
+
+ARTIFACTS = env_path("MIZAN_ARTIFACTS", REPO_ROOT / "artifacts")
+DEFAULT_SUBMISSION = REPO_ROOT / "corpus" / "demo" / "submission"
+
+# Session-state keys the Run console writes to hand a reviewer off to this screen: which run to
+# open, and where its submission lives, so evidence is cropped from the files that run actually
+# read rather than from whatever MIZAN_SUBMISSION happens to point at.
+SESSION_RUN = "review.run"
+SESSION_SUBMISSION = "review.submission"
+
+
+def submission_for(run: Path) -> Path:
+    """Where this run's evidence lives, in order of how much the caller told us.
+
+    A session value set by the Run console wins, because it names the exact directory that run's
+    files were staged into. Failing that, `<run>/submission` - a console-made run stages its own
+    files there - if it exists. Failing that, `MIZAN_SUBMISSION` for the officer who launched the
+    screen against a directory by hand, and the demo corpus if nobody said anything at all.
+    """
+    from_session = st.session_state.get(SESSION_SUBMISSION)
+    if from_session:
+        candidate = Path(str(from_session))
+        if candidate.is_dir():
+            return candidate
+    staged = run / "submission"
+    if staged.is_dir():
+        return staged
+    return env_path("MIZAN_SUBMISSION", DEFAULT_SUBMISSION)
+
+
+def main(*, configure_page: bool = True) -> None:
+    """The Review page. `configure_page=False` when `st.navigation` already called
+    `st.set_page_config` for the whole app - Streamlit allows exactly one call per script run."""
+    if configure_page:
+        st.set_page_config(page_title="Mizan — verification review", layout="wide")
     run = _pick_run()
     if run is None:
         return
@@ -134,8 +221,42 @@ def main() -> None:
             _card(finding, verdict, run, reviewer, inputs)
 
 
+def page() -> None:
+    """The `st.Page` entry the Run console's `st.navigation` calls. The `__main__` guard at the
+    foot of this file still runs `main()` unwrapped, so `streamlit run src/tda/review/app.py` -
+    the Docker image's command, and `make review` before the console existed - keeps working
+    unchanged."""
+    main(configure_page=False)
+
+
 def _pick_run() -> Path | None:
-    """Which run to review. The most recent by default, because that is what somebody just ran."""
+    """Which run to review.
+
+    A run the console just made, named in session state, wins - that is the officer clicking
+    "Open in Review" and expecting to land on that run rather than the most recent one by mtime,
+    which could be a different run made a second earlier by a scene running concurrently. Checked
+    against `known` too, redundantly with `console.py` only ever writing a run id it already added
+    there - a scoping bug should not need every writer of `SESSION_RUN` to stay correct forever for
+    this to hold. Failing that, `MIZAN_RUN` for the officer who launched the screen by hand, and
+    the most recent run otherwise - unless `single_operator()` is off, in which case the fallback
+    list is scoped to runs this session itself made, because listing every run under `ARTIFACTS` on
+    a deployment reachable by more than one untrusting viewer is showing each of them what the
+    others uploaded.
+    """
+    visible = single_operator()
+    known: set[str] = st.session_state.get(SESSION_KNOWN_RUNS, set())
+
+    from_console = st.session_state.get(SESSION_RUN)
+    if from_console and (visible or str(from_console) in known):
+        run = ARTIFACTS / str(from_console)
+        if (run / VERDICT_FILE).is_file():
+            return run
+        # The console's own record of "the last run I made" pointed somewhere that no longer has
+        # a verdict - stale state from an earlier session, most likely. Drop it and fall through
+        # to the ordinary picker rather than erroring on a run the officer never asked to see.
+        del st.session_state[SESSION_RUN]
+        st.warning(f"the run this screen was opened on, {from_console!r}, no longer has a verdict.")
+
     chosen = os.environ.get("MIZAN_RUN")
     if chosen:
         run = ARTIFACTS / chosen
@@ -143,10 +264,13 @@ def _pick_run() -> Path | None:
             st.error(f"no {VERDICT_FILE} in {run}.")
             return None
         return run
-
     runs = (
         sorted(
-            (d for d in ARTIFACTS.iterdir() if (d / VERDICT_FILE).is_file()),
+            (
+                d
+                for d in ARTIFACTS.iterdir()
+                if (d / VERDICT_FILE).is_file() and (visible or d.name in known)
+            ),
             key=lambda d: d.stat().st_mtime,
             reverse=True,
         )
@@ -154,10 +278,16 @@ def _pick_run() -> Path | None:
         else []
     )
     if not runs:
-        st.error(
-            f"No reviewable run under {ARTIFACTS}. `make run` produces one — a run writes "
-            f"`{VERDICT_FILE}` beside its other artifacts."
-        )
+        if visible:
+            st.error(
+                f"No reviewable run under {ARTIFACTS}. `make run` produces one — a run writes "
+                f"`{VERDICT_FILE}` beside its other artifacts."
+            )
+        else:
+            st.error(
+                "No run from this browser session is reviewable yet. This deployment shows each "
+                "viewer only the runs they made themselves - start one from the Run page first."
+            )
         return None
     latest = latest_run(ARTIFACTS)
     names = [d.name for d in runs]
@@ -188,9 +318,11 @@ def _sidebar(verdict: VerdictDocument, run: Path, inputs: Sequence[InputFile]) -
     if verdict.undecided_findings:
         st.sidebar.caption(f"Outstanding: {', '.join(verdict.undecided_findings)}")
     st.sidebar.markdown("### Artifacts")
+    with st.sidebar:
+        ui.downloads(run, key_prefix="review")
     st.sidebar.caption(f"`{run}`")
     st.sidebar.caption("Every decision is written to `verdict.json` and re-issues `memo.docx`.")
-    st.sidebar.caption(f"Evidence read from `{SUBMISSION}`")
+    st.sidebar.caption(f"Evidence read from `{submission_for(run)}`")
     if not inputs:
         # Without the ledger there is nothing to check a file against, and the screen would show
         # whatever is in the submission directory. Better to say so than to look confident.
@@ -202,16 +334,8 @@ def _sidebar(verdict: VerdictDocument, run: Path, inputs: Sequence[InputFile]) -
 
 
 def _header(verdict: VerdictDocument) -> None:
-    st.markdown(f"## {verdict.status.value} · {verdict.hotel_id} · {verdict.period}")
-    columns = st.columns(4)
-    figures_ = (
-        ("Claims checked", verdict.claims_checked),
-        ("Hotel errors", verdict.summary.hotel_errors),
-        ("Definitional items", verdict.summary.definitional_items),
-        ("Not verifiable", verdict.summary.not_verifiable),
-    )
-    for column, (label, value) in zip(columns, figures_, strict=True):
-        column.metric(label, value)
+    ui.status_banner(verdict.status.value, hotel_id=verdict.hotel_id, period=verdict.period)
+    ui.summary_metrics(verdict.summary, claims_checked=verdict.claims_checked)
     st.caption(
         f"Policy {verdict.policy_version} · metric library {verdict.metric_library_version} · "
         f"{verdict.model_id} ({verdict.provider_mode}) · run {verdict.run_id}"
@@ -234,6 +358,8 @@ def _ask_box(verdict: VerdictDocument, run: Path) -> None:
     questions are part of. Session state also survives the rerun that follows a recorded decision,
     so the answer does not vanish at the moment the officer acts on it.
     """
+    from tda.review.live import LiveModeError
+
     with st.expander("Ask about this verdict", expanded=False):
         st.caption(
             "Answered from this verdict, its evidence and the definitions, with citations. It "
@@ -250,9 +376,13 @@ def _ask_box(verdict: VerdictDocument, run: Path) -> None:
         )
         if st.button("Ask", key="assist-ask"):
             with st.spinner("Asking..."):
-                st.session_state["assist-answer"] = put_question(
-                    question, verdict, run, _provider(), load_policy()
-                )
+                try:
+                    st.session_state["assist-answer"] = put_question(
+                        question, verdict, run, _provider(), load_policy()
+                    )
+                except LiveModeError as exc:
+                    st.error(str(exc))
+                    return
 
         result = st.session_state.get("assist-answer")
         if result is None:
@@ -284,16 +414,20 @@ def _render_answer(result: AskResult) -> None:
 
 def _provider() -> LLMProvider:
     """The model layer the assistant talks to: `policy.model.provider`, the source `mizan run`
-    reads too.
+    reads too, filtered through this deployment's live-mode gate.
 
     Not `verdict.provider_mode`, which records what *that* run actually used and may have been an
     override on the command line. The two can legitimately differ - a replayed run reviewed on a
     machine with a key - and conflating them would make the screen's behaviour depend on how the
     run happened to be invoked.
-    """
-    from tda.cli import build_provider
 
-    return build_provider(load_policy().model.provider)
+    Routed through `tda.review.live` rather than calling `tda.cli.build_provider` directly, so a
+    hosted deployment with live mode off refuses a policy that asks for `anthropic` on screen,
+    instead of reaching the SDK and surfacing as an opaque failure three layers down.
+    """
+    from tda.review.live import live_gate
+
+    return live_gate().provider_for(load_policy().model.provider)
 
 
 def _card(
@@ -304,59 +438,22 @@ def _card(
     inputs: Sequence[InputFile],
 ) -> None:
     standing = verdict.standing_decisions.get(finding.finding_id)
-    with st.container(border=True):
-        left, right = st.columns([3, 1])
-        left.markdown(f"**{headline(finding)}**")
-        right.markdown(
-            f"<div style='background:{chip_colour(finding)};border-radius:4px;padding:2px 8px;"
-            f"text-align:center;color:#222;font-weight:600;'>{finding.severity.value}</div>",
-            unsafe_allow_html=True,
-        )
-        st.caption(cause_line(finding))
-
-        for column, (label, value) in zip(st.columns(3), figures(finding), strict=True):
-            column.metric(label, value)
-
-        _evidence(finding, run, inputs)
-        if finding.narrative:
-            st.caption(finding.narrative)
-
-        if standing is not None:
-            st.success(
-                decision_summary(standing, len(superseded(verdict, finding.finding_id))),
-                icon="✅",
-            )
-        _decide(finding, run, reviewer, decided=standing is not None)
-
-
-def _evidence(finding: Finding, run: Path, inputs: Sequence[InputFile]) -> None:
-    """Both sides, side by side. The whole point of the screen."""
-    evidence = _evidence_for(str(run), finding.model_dump_json(), _digests(inputs))
-    source_citation, cell_citation = citations(finding)
-    # The report pane is wider than the workbook pane, because the evidence it carries is a
-    # landscape page of small print and the other is a handful of cells. Equal columns look
-    # tidier and make the half that actually needs reading the half nobody can read.
-    source, claim = st.columns([3, 2])
-
-    source.markdown("**What the records say**")
-    if evidence.source_png is not None:
-        source.image(evidence.source_png, caption=source_citation)
-    else:
-        source.info(evidence.source_caption or source_citation)
-
-    claim.markdown("**What the hotel claimed**")
-    if evidence.cell is not None:
-        claim.markdown(cell_table(evidence.cell), unsafe_allow_html=True)
-        claim.caption(cell_citation)
-    else:
-        claim.info(cell_citation)
-
-    for problem in evidence.missing:
-        st.warning(problem)
+    ui.finding_card(
+        finding,
+        _evidence_for(
+            str(run), finding.model_dump_json(), _digests(inputs), str(submission_for(run))
+        ),
+        decide=partial(_decide, finding, run, reviewer, decided=standing is not None),
+        standing=(
+            None
+            if standing is None
+            else decision_summary(standing, len(superseded(verdict, finding.finding_id)))
+        ),
+    )
 
 
 @st.cache_data(show_spinner=False)
-def _evidence_for(run: str, finding_json: str, digests: str) -> Evidence:
+def _evidence_for(run: str, finding_json: str, digests: str, submission: str) -> Evidence:
     """Cached per finding, because Streamlit re-runs this script on every keystroke.
 
     Keyed on the finding's own JSON rather than on its id: two runs can both have an `F-0001`, and
@@ -365,6 +462,8 @@ def _evidence_for(run: str, finding_json: str, digests: str) -> Evidence:
 
     `digests` is in the key for the same reason - the same finding checked against a different file
     set is a different question - and is passed as JSON because a cache key has to be hashable.
+    `submission` joins the key too: a console-made run and the demo corpus can both hold a finding
+    with the same id, and the cache must not hand one's crop to the other.
     """
     from tda.contracts import Finding
     from tda.obs.ledger import InputFile
@@ -372,7 +471,7 @@ def _evidence_for(run: str, finding_json: str, digests: str) -> Evidence:
     del run  # part of the cache key, not of the lookup
     return evidence_for(
         Finding.model_validate_json(finding_json),
-        SUBMISSION,
+        Path(submission),
         [InputFile.model_validate(item) for item in json.loads(digests)],
     )
 

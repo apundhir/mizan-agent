@@ -10,7 +10,7 @@ PYTHON   ?= python3.12
 
 .DEFAULT_GOAL := help
 .PHONY: help setup ci lint fmt fmt-check types test guard policy prompts \
-        datagen corpus fixtures fixtures-verify run trace review eval repro demo \
+        datagen corpus fixtures fixtures-verify run trace review review-live eval repro demo \
         record bundle clean
 
 help:  ## Show this help
@@ -39,13 +39,13 @@ ci: lint fmt-check types guard policy corpus fixtures fixtures-verify test eval 
 	@echo "  ci green"
 
 lint:  ## ruff check
-	$(PY) -m ruff check src tools tests
+	$(PY) -m ruff check src tools tests streamlit_app.py
 
 fmt:  ## ruff format (writes)
-	$(PY) -m ruff format src tools tests
+	$(PY) -m ruff format src tools tests streamlit_app.py
 
 fmt-check:  ## ruff format --check
-	$(PY) -m ruff format --check src tools tests
+	$(PY) -m ruff format --check src tools tests streamlit_app.py
 
 types:  ## mypy --strict
 	$(PY) -m mypy
@@ -79,8 +79,13 @@ run:  ## Verify one submission end to end (SUBMISSION=... to point elsewhere)
 trace:  ## Render the most recent run as a tree (RUN=<run_id> for an older one)
 	$(PY) -m tda.cli trace $(RUN)
 
-review:  ## The officer's screen (RUN=<run_id>, SUBMISSION=<dir> if not the demo corpus)
-	MIZAN_RUN=$(RUN) MIZAN_SUBMISSION=$(SUBMISSION) $(PY) -m streamlit run src/tda/review/app.py
+review:  ## The Run console and the officer's screen (RUN=<run_id>, SUBMISSION=<dir> if not the demo corpus)
+	MIZAN_SINGLE_OPERATOR=true MIZAN_UPLOAD_ENABLED=true $(if $(RUN),MIZAN_RUN=$(RUN)) $(if $(SUBMISSION),MIZAN_SUBMISSION=$(SUBMISSION)) \
+	  $(PY) -m streamlit run streamlit_app.py
+
+review-live:  ## Same, with live model calls (export ANTHROPIC_API_KEY in the shell first)
+	MIZAN_SINGLE_OPERATOR=true MIZAN_UPLOAD_ENABLED=true MIZAN_LIVE_MODE=true $(if $(RUN),MIZAN_RUN=$(RUN)) $(if $(SUBMISSION),MIZAN_SUBMISSION=$(SUBMISSION)) \
+	  $(PY) -m streamlit run streamlit_app.py
 
 # ── the scored fixtures, and the harness over them ───────────────────────────
 # `fixtures` mutates a COPY of corpus/demo and derives what each mutation should produce. The demo

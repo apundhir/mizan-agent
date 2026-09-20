@@ -3,6 +3,209 @@
 Versioning is `0.<milestone>.<patch>` through the POC — `v0.1.0` at the end of M1, `v0.6.0` at the
 end of M6. Semantic versioning of a POC's public API would be a fiction.
 
+## v0.6.0 — The Run console, hosted (PRD-115) · 2026-09-20
+
+A viewer, not just a reader of a committed corpus: pick one of five prepared scenes, watch the
+five-node pipeline work, read the verdict with the report rows and the workbook cell side by side,
+and hand off to the review gate. Runs on Streamlit Community Cloud with no install, replay-only by
+default, no key anywhere unless a deployment turns live mode on, and no uploader unless a
+deployment asks for one.
+
+### The demo it had to become
+
+The console worked and did not sell. It opened on ninety words of grey disclaimer with no title,
+offered its five scenes through a dropdown so that neither the written description nor the expected
+outcome was visible until after choosing, rendered the verdict as bold body text, and listed each
+finding as one markdown bullet carrying neither the figures nor the evidence. It had no `[theme]`
+block at all, so three unrelated hard-coded palettes fought each other and dark mode was unreadable.
+
+Everything needed to fix that was already in the repository. The scenes had descriptions. The
+findings had claimed, computed and difference. `tda.review.evidence` had been cropping the exact
+PDF rows and highlighting the workbook cell since M5, and only the second screen ever showed it.
+
+- **A theme**, in `.streamlit/config.toml`, light and dark. The palette is the one `README.md`'s
+  diagrams already use, because those colours carry the argument: blue is deterministic code, amber
+  is where a model was involved. `present.tone()` returns a colour name so the theme supplies the
+  value. `chip_colour()` is deliberately untouched, since its hexes mirror the fills
+  `tda.outputs.workbook` writes into the annotated spreadsheet and an officer reading both must
+  meet one visual language.
+- **`tda.review.ui`**, the pieces both screens draw with, so one finding renders one way on each.
+- **The Run page rebuilt**: a title, three figures of which the third is `Computed by a model: 0`,
+  five scene cards readable before choosing, stages labelled with what they did rather than with
+  this repository's node names, a verdict banner with a sentence saying what the verdict means, a
+  plain-English account of what was actually read, findings as full cards **with the evidence pair
+  on this page for the first time**, and the three artefacts a hotel receives offered for download.
+- **The agent calls, supervisor decisions and replay player** move behind one disclosure. They are
+  the most interesting material on the page for one audience and noise for the other.
+- **A How it works page**, because a link sent to a stranger has to explain itself. It carries the
+  stages as prose, where the models are and the rule they are held to, what replay means, an honest
+  account of what this demo does not prove, and both responsible-AI disclosures verbatim.
+
+Three defects surfaced while building it, each on a path no test covered: `verdict.extraction` is
+absent on a rejected submission, so the new summary sentence would have crashed the missing-report
+scene; the working panel read a `run.json` that a killed sandboxed child never writes; and the
+replay player opened at its first frame, drawing a second stage rail reading "working, waiting"
+beneath a finished verdict.
+
+### The gap this closes
+
+The supervisor (`src/tda/agents/supervisor.py`) has had a budget, a log and a full test suite
+since M4, and nothing had ever constructed one on a real call path - `docs/03-architecture.md` §6
+said so in plain words. A console built to show "routing decisions" against that code would have
+shown decisions nobody made. This release puts the supervisor in front of every model call
+`AgentRunner.run` makes, starting with the one call `mizan run` itself invokes, and gives every
+decision a fourth artifact of its own: **`routing.jsonl`, byte-reproducible across two runs of the
+same submission**, confirmed by `make repro`.
+
+### Added
+
+- **`src/tda/agents/supervisor.py` wired live**: `RunContext.build` constructs a `Supervisor`,
+  `runner_for(..., node=...)` binds it to a node, and `AgentRunner.run` calls
+  `supervisor.route(...)` between building a request and sending it. A refusal is recorded against
+  the request's cassette key and re-raised as the same error a caller already handled - routing
+  changes nothing about what happens on a failure, only whether one does.
+- **`src/tda/obs/routing.py`**: `RoutingRecord`, `RoutingLog`, `read_routing` (empty on a missing
+  file, since every writer before this one still produces none).
+- **The Run console** (`src/tda/review/`): `scenes.py` (five demonstration scenes, none naming a
+  fixture internally), `staging.py` (an upload, validated by extension, magic bytes, size and
+  count, staged by role), `runner.py` (the pipeline, self-contained under its own run id, in
+  process on a background thread for a scene or handed to the sandbox for an upload),
+  `sandbox.py` (an upload's verification run as a memory- and CPU-limited child process, the
+  backstop behind `staging`'s own checks - see the Security section below), `timeline.py` (one
+  function builds the live view, the replayed view and the sandboxed upload's all-at-once view
+  from the same `nodes.jsonl`/`trace.jsonl`/`routing.jsonl`), `shown.py` (what an agent was asked,
+  recovered from the cassette or recomputed and proven equal to it, never stored), `prose.py`
+  (narrate-and-grade on demand, one finding's missing cassette does not blank the panel), and
+  `console.py` over all of it, with `streamlit_app.py` as the two-page entrypoint.
+- **`mizan run --run-id`**: an optional, explicit run id, so a caller that already minted one - the
+  console staging an upload's submission before the sandboxed process exists to write into it -
+  can hand it to the CLI instead of letting it mint its own.
+- **`src/tda/review/live.py`**: the one module that names `ANTHROPIC_API_KEY`. Off unless
+  `MIZAN_LIVE_MODE` says otherwise, refused rather than downgraded when misconfigured, bounded by
+  a per-session cap and, because a new browser tab resets session state, a per-process cap behind
+  it that a tab cannot reset.
+- **`requirements.txt`, `.streamlit/config.toml`, `.streamlit/secrets.example.toml`**: what
+  Streamlit Community Cloud installs and reads - there is no `pip install -e .` step on that
+  platform, so nothing `make setup` would install can be missing from `requirements.txt` (checked
+  by `tests/unit/test_packaging.py`).
+- **`ADR-0010`**: where the console runs and why, including the run-id-divergence bug caught
+  during manual testing before it reached committed code (staging and the job each minting their
+  own id, pointed at different directories) and the reasoning for recovering, rather than storing,
+  what an agent was shown.
+
+### Changed
+
+- **`make review`** now opens `streamlit_app.py` (both the Run console and the review screen) and
+  guards `RUN`/`SUBMISSION` with `$(if ...)` rather than exporting them blank - a fix for the
+  `Path("")` bug the previous form could produce, pinned by a regression test. **`make review-live`**
+  is new: the same, with `MIZAN_LIVE_MODE=true` and a key read from the shell.
+- **The Docker image** now ships `tools/fixtures` and `tools/datagen`, so the console's two
+  mutated scenes build their fixtures on first use, and deliberately not `tools/demo`, so the
+  refusal scene - the one that needs `reportlab` - is omitted from the catalogue rather than
+  offered and failing when run. Its `CMD` now runs `streamlit_app.py`. Verified by building the
+  image and driving it through a real browser: a fixture built live, a run reached FAIL with the
+  correct findings, and Open in Review handed off cleanly with cropped evidence.
+- **`docker/compose.yaml`** and **CI** both set `MIZAN_LIVE_MODE: "false"` explicitly, alongside
+  CI dropping the never-read `MIZAN_LLM_PROVIDER` variable it carried since M1.
+- **An upload no longer runs on the console's own background thread.** It runs sandboxed (see
+  Security below); a scene still runs in process, live, exactly as before. The console shows a
+  single "verifying your submission" state for an upload rather than the five-chip live view a
+  scene gets, then the same complete timeline either way, read back from the files the run wrote.
+
+### Security
+
+`ANTHROPIC_API_KEY` is read in exactly one place (`tda.review.live.provider_for`, handed to
+`tda.cli.build_provider` as a bare provider name, never held), never logged, never rendered, and
+`tda.obs.redact` gained an `api_key` pattern so a key pasted into an uploaded cell or the
+assistant's question box cannot reach a written artifact or the console's own screen. It cannot
+reach a build context (`.dockerignore` denies `**/secrets.toml`) or a commit (`.gitignore` and the
+secret guard both refuse a tracked `secrets.toml`). On Streamlit Community Cloud it is a
+root-level secret, verified against Streamlit's own current documentation to become an environment
+variable only at that level, never inside a `[section]` - the exact property `tda.review.live`
+depends on.
+
+Two independent pre-share reviews (G5 security, G6 responsible-AI) ran against the console before
+this shipped. G6 returned BLOCK once, on the cross-viewer disclosure below, and passed on
+re-review. G5 returned BLOCK six times against the upload path: five rounds against `tda.review.
+staging`'s own content checks, each finding a real, working proof of concept the previous fix had
+not closed, and a sixth against the resource-limited subprocess built to replace them, which found
+real bugs in that mechanism's first form.
+
+- **Cross-viewer disclosure.** The review screen's run picker and the console's own replay panel
+  both listed every run under one shared artifacts directory, with no session scoping - on a
+  hosted deployment reachable by more than one viewer, each could see what the others had
+  uploaded. `tda.review.app.single_operator()` restricts both listings to runs the current session
+  itself made, off by default; `docker/compose.yaml` and `make review`/`make review-live` opt the
+  trusted single-operator context back in explicitly.
+- **An upload could exhaust the shared hosted process, and content inspection could not keep up.**
+  Five rounds, each a real proof of concept: a decompressed-size bypass (many short cells cost far
+  more resident memory per byte of XML than an ordinary export does); a regex cell count undercounted
+  by a namespace-prefixed `<c>` tag; the same count undercounted again by a merge range, which
+  needs no `<c>` element at all; a `<dimension>` hint that lied by being wrong rather than absent,
+  defeating the check that trusted it; and finally a `<hyperlink ref="A1:XFD1048576">` that drove
+  a 1.5-kilobyte upload past a gigabyte of resident memory, the construction that closed the
+  pattern. **`tda.review.sandbox`** runs an upload's verification as its own memory- and CPU-limited
+  child process, so a file that finds a sixth construction exhausts its own child's ceiling instead
+  of the process every viewer shares. `tda.review.staging` now bounds only what a byte cap can
+  answer from zip metadata alone - the cell count and merge-range sum four of the five rounds spent
+  building are gone, not kept alongside the sandbox: a sixth review found that unsandboxed parse
+  was itself costing several seconds of CPU and hundreds of megabytes in this process, on a payload
+  built to clear the byte cap by design, so the check meant to protect the process was itself the
+  cost worth removing once the process boundary existed to make it redundant. See
+  [ADR-0010](docs/adr/0010-the-console-runs-in-process-and-replays-the-record.md) §7 for the full
+  account, including two bugs this build's own verification caught before either review pass would
+  have reached them: `RLIMIT_AS` is unusable on macOS (an ordinary process reserves hundreds of
+  gigabytes of virtual address space there from allocator conventions alone, guarded by a
+  Linux-only check, verified against the platform this actually ships to) and a child process does
+  not inherit the parent's in-memory `sys.path` patch, which would have made every upload fail
+  silently on Streamlit Community Cloud's own `requirements.txt`-only install shape had it shipped
+  unfixed.
+- **The subprocess boundary itself crashed the page on its own success path, and still let the
+  parent do the expensive work it existed to avoid.** A sixth G5 review, of `tda.review.sandbox`
+  specifically: a subprocess a resource limit or the wall-clock timeout killed writes nothing, and
+  the console called `timeline_from_run` on it anyway, an uncaught `FileNotFoundError` on exactly
+  the path this mechanism exists to serve, reproduced against a real killed subprocess and fixed by
+  checking the ledger file's presence before reading it. `preexec_fn`, which ran in a
+  forked-but-not-yet-exec'd copy of a process the console's background worker makes multithreaded -
+  the exact hazard the `subprocess` module's own documentation warns about - is gone; `mizan run`
+  now applies its own resource limits to itself, via two new CLI flags, immediately after parsing
+  arguments. A kill reported after a real verdict had already been written would have been read
+  back as a total loss; checked against disk first now, not against what the subprocess reported
+  about itself. `ANTHROPIC_API_KEY` no longer reaches a replay or stub run's child, which never
+  needs it. The memory ceiling had never been checked against Streamlit Community Cloud's own
+  published range, and nothing bounded how many sandboxed children could run at once; both lowered
+  and capped (a new `MIZAN_SANDBOX_MAX_CONCURRENT`), flagged in the runbook as needing
+  re-verification against the real deployed container rather than claimed as measured. Smaller
+  fixes in the same pass: `--hotel` and its neighbours are passed `=`-joined so a viewer-typed
+  value cannot be mistaken for a second flag; a malformed sandbox environment variable now fails
+  the run loudly instead of silently substituting the default; the child no longer inherits the
+  parent's working directory or holds an unbounded stdout/stderr pipe into it. A third bug turned
+  up verifying the fix on real Linux, prompted by neither review: the lower memory ceiling let a
+  bomb's `MemoryError` reach `mizan run`'s own failure path cleanly, then let *building the
+  failure ledger* - digesting every input file - throw a second, unhandled `MemoryError`, exiting
+  with Python's default code for an uncaught exception (`1`) rather than `COULD_NOT_RUN` (`2`) -
+  indistinguishable from a real verdict to anything reading the exit code. `tda.cli.main` now
+  wraps that write in its own `try`/`except`.
+
+### Known gaps
+
+- **The per-session live-run cap resets on a new browser tab**, by design (`st.session_state` is
+  per-session); the per-process cap added this release is what actually bounds total spend on a
+  deployment between reboots.
+- **Nothing a console run writes survives a reboot.** Streamlit Community Cloud's own documentation
+  states it does not guarantee local file storage persists and may delete it at any time; a run
+  worth keeping has to be exported before that happens.
+- **Viewer invitations are the only access control.** Not an authentication system: an invited
+  account can see everything a private app's Sharing list grants, and the account is limited to
+  one private app at a time.
+- **No bound on replay-mode submission frequency or cross-tab concurrency.** The live-run caps
+  bound spend; nothing yet bounds how many free replay runs one session, or several concurrent
+  ones, can start. Tracked, not blocking a synthetic-data demo on its own.
+- **An upload gives up the live, node-by-node view a scene gets**, in exchange for running in its
+  own resource-limited process rather than the shared one. Accepted in ADR-0010 §7 as the cost of
+  a real isolation guarantee, after five rounds of content inspection alone did not converge on
+  one.
+
 ## v0.5.2 — Narrative grading (PRD-95) · 2026-09-16
 
 The numbers have been covered by `make eval` since PRD-94. The prose was not, and the prose is what

@@ -255,7 +255,9 @@ def claim_parse_node(state: RunState, context: RunContext) -> dict[str, Any]:
         # *this* workbook - see `tda.agents.tools` on why a registry never outlives the data it
         # reads. The runner shares the run's trace and ledger, so the call still lands in one log.
         mapping = map_workbook_traced(
-            formulas, context.policy, context.runner_for(mapping_registry(formulas))
+            formulas,
+            context.policy,
+            context.runner_for(mapping_registry(formulas), node=CLAIM_PARSE),
         ).output
         claims = parse_claims(
             values,

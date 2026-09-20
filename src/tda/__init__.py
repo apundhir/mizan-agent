@@ -3,7 +3,7 @@
 Deterministic core, agentic edges. See docs/adr/0001-deterministic-core-agentic-edges.md.
 """
 
-__version__ = "0.5.2"
+__version__ = "0.6.0"
 
 # METRIC_LIBRARY_VERSION deliberately does NOT live here. It belongs to the metric library and is
 # defined in `tda.metrics`, which is the only place that knows when a metric's behaviour moved. A

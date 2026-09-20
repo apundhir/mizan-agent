@@ -244,6 +244,15 @@ budget lets one runaway agent spend every other agent's allowance before anythin
 **Exhaustion raises. It is never a truncation.** A verdict produced from a pipeline that quietly
 stopped calling agents looks exactly like a complete one.
 
+**It sits on the call path, not beside it.** `AgentRunner.run` calls `supervisor.route(...)`
+between building a request and sending it, for every runner a `RunContext` constructs bound to a
+node. Today that is the `claim_parse` node's mapping call, the only agent `mizan run` invokes. A
+refusal is recorded against the request's cassette key, so a budget failure is traceable to the
+exact call it stopped, then re-raised as the same `BudgetExceededError` or `AgentError` a caller
+already had to handle. Routing changes nothing about what a caller does with a failure, only
+whether one happens. Every decision, granted, skipped or refused, is written to `routing.jsonl`
+(§9), redacted the same way `trace.jsonl` is.
+
 ---
 
 ## 7 · The eval sets, and what they currently measure
@@ -339,7 +348,7 @@ with no reader; the graph is its first.
 
 ## 9 · What a run leaves behind
 
-`artifacts/<run_id>/`, three files, written by `mizan run` and read back by `mizan trace`. Each
+`artifacts/<run_id>/`, four files, written by `mizan run` and read back by `mizan trace`. Each
 answers a different question, and the split is deliberate — see
 [ADR-0006](adr/0006-observability-redaction-and-recorded-runtime.md).
 
@@ -348,12 +357,18 @@ answers a different question, and the split is deliberate — see
 | `run.json` | what was this run looking at, under which rules, and what did it cost? |
 | `trace.jsonl` | what did each agent get asked and what did it answer? (§5) |
 | `nodes.jsonl` | what did the pipeline do, in order, and where did it stop? |
+| `routing.jsonl` | what did the supervisor grant, skip or refuse, and why? (§6) |
 
-They are written whether or not the run finished. A run that dies writes the same three files
+They are written whether or not the run finished. A run that dies writes the same four files
 under the id it was running as, with `status: FAILED` — the one value `VerdictStatus` cannot
 express, because a verdict is a statement about a submission and a run that died made no statement.
 Writing only on success would mean the record exists for every run except the ones anybody needs it
 for.
+
+`routing.jsonl` is the one file of the four that is optional at the call site rather than always
+present: `read_routing` reads an absent file as empty, which is what every writer before the
+supervisor was wired in produced and still produces for a caller (an eval harness, a hand-built
+test fixture) that never built one.
 
 `verdict.json` is **not** among them, and will not be written by this code. The verdict is the
 thing an officer signs behind; these are its working. One writer for both would make the evidence
@@ -502,7 +517,75 @@ human has looked. See [ADR-0008](adr/0008-the-review-gate-is-headless-and-the-ev
 
 ---
 
-## 12 · Where to read next
+## 12 · The Run console
+
+`streamlit_app.py`, the hosted demo (PRD-115): pick a prepared scene or upload a submission, press
+Run, watch the pipeline work, read the verdict, hand off to the review gate above. It is the same
+"headless module plus a thin Streamlit shell" shape as §11, extended over a run that has not
+happened yet rather than one already on disk.
+
+Each console run is self-contained: `artifacts_root/<run_id>/submission/` holds the scene's files
+or the upload, named by role, and `artifacts_root/<run_id>/manifest.json` records the declared
+hotel and period beside it. The run then goes through the same sequence `mizan run` does.
+
+```
+tda.review.scenes     a known submission, by scene key      ─┐
+tda.review.staging    an uploaded submission, by role        │
+tda.review.runner     the pipeline: in process, or sandboxed ├─  tda.review.console  (a thin shell)
+tda.review.sandbox     an upload's own resource-limited run   │
+tda.review.timeline   the node log and trace, as events      │
+tda.review.shown      what an agent was asked, recovered     │
+tda.review.prose      narrative and critic, on demand        ─┘
+```
+
+**A scene runs on a background thread; an upload runs as a child process.** A prepared scene's
+files are this repository's own committed corpus, already trusted before the console existed, so
+it runs `verify_directory` in process on a daemon thread and the page renders every node and agent
+call live, the way §11's headless-module shape suggested from the start. An upload is the one
+input this codebase has never authored, and `tda.review.staging` once tried to bound what
+`openpyxl` would build from one by inspecting it: a cell count, a merge-range area, a `<dimension>`
+hint rescanned rather than trusted. Five rounds of a G5 security review defeated each of those in
+turn, every fix closing the exact OOXML construct demonstrated and leaving the next one open, and a
+sixth round measured the inspection *itself* costing seconds of CPU and hundreds of megabytes in
+the process it was meant to protect. So the inspection is gone. Staging now bounds only what
+`zipfile.infolist()` metadata answers without decompressing anything: the upload's own byte cap,
+the archive's declared decompressed size, and a page cap on each PDF report. **Nothing in this
+process predicts what a valid-looking `.xlsx` will expand to any more.**
+`tda.review.sandbox.run_sandboxed` runs `mizan run` as a genuine child process instead, with
+`RLIMIT_AS` and `RLIMIT_CPU` applied by the child to itself before it does any other work, a
+process-group kill on timeout, and a cap on how many such children run at once, so a file that
+would have exhausted the shared hosted process instead exhausts its own child's ceiling. The
+console shows a single "verifying your submission" state while this runs, then the same timeline a
+finished run's own files always produce - one node-by-node stage view for a scene, one
+all-at-once reveal for an upload, both read back through the same `tda.review.timeline` function.
+Staging's remaining caps still run first and still refuse a large, cheap-to-detect file before a
+subprocess starts, but they bound only what is already on disk; the cost of everything past that is
+the child's ceiling alone. On a deployment where `tda.review.app.uploads_enabled` is off, which is
+the default and what the hosted demo runs, none of this path is reachable at all. See
+[ADR-0010](adr/0010-the-console-runs-in-process-and-replays-the-record.md) §7.
+
+**The timeline is read, not re-derived.** `tda.review.timeline` turns the same `nodes.jsonl` and
+`trace.jsonl` entries §9 describes into the events the page renders, live or replayed from a past
+run through the one function. A chip goes green because a node exit was logged, not because the
+page guessed a run had finished.
+
+**What an agent was shown is recovered, not stored.** No trace record carries request text (§5);
+a replayed call's prompt comes back from the cassette it matched, and a live mapping call's prompt
+is rebuilt from the workbook by the same function that built the original request, then proven
+equal to it by a test. Every string that reaches the page is redacted again at render time, on top
+of whatever redaction already happened when the underlying artifact was written.
+
+**Live model calls are refused by default.** `tda.review.live` is the one place this codebase
+names `ANTHROPIC_API_KEY`; every other module reads a provider it is handed. Off unless
+`MIZAN_LIVE_MODE` says otherwise, capped per browser session and, because a new tab is a new
+session, capped again per server process. See [docs/04-runbook.md](04-runbook.md#deploying-to-streamlit-community-cloud)
+for how a deployment turns it on for a demo and back off after.
+
+See [ADR-0010](adr/0010-the-console-runs-in-process-and-replays-the-record.md).
+
+---
+
+## 13 · Where to read next
 
 | Question | File |
 |---|---|
@@ -513,6 +596,7 @@ human has looked. See [ADR-0008](adr/0008-the-review-gate-is-headless-and-the-ev
 | why a trace is redacted rather than withheld | [ADR-0006](adr/0006-observability-redaction-and-recorded-runtime.md) |
 | why the memo is rendered from the file rather than from memory | [ADR-0007](adr/0007-outputs-render-from-the-written-verdict.md) |
 | why the review gate is headless | [ADR-0008](adr/0008-the-review-gate-is-headless-and-the-evidence-is-cropped.md) |
+| why the Run console runs in process and replays the record | [ADR-0010](adr/0010-the-console-runs-in-process-and-replays-the-record.md) |
 | what a model can and cannot see of a workbook | `src/tda/excel/tools.py` |
 | why an unmapped label is never guessed | `src/tda/extract/normalise.py` |
 | what a cassette is and how to review its diff | `tests/cassettes/README.md` |

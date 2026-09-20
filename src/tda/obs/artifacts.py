@@ -1,12 +1,17 @@
 """Writing a run down: `artifacts/<run_id>/`, redacted on the way out.
 
-Three files, and each answers a different question:
+Four files, and each answers a different question:
 
 | File | The question |
 |---|---|
 | `run.json` | what was this run looking at, under which rules, and what did it cost? |
 | `trace.jsonl` | what did each agent get asked and what did it answer? |
 | `nodes.jsonl` | what did the pipeline do, in order, and where did it stop? |
+| `routing.jsonl` | which agent was asked to run, which was skipped or refused, and why? |
+
+The fourth is younger than the other three (v0.6.0, when the supervisor was wired into the
+pipeline) and optional on read for exactly that reason: a run written before it existed has nothing
+wrong with it, only nothing to say here. See `tda.obs.routing`.
 
 `verdict.json` is **not** here. That is PRD-92's, and the split is deliberate: the verdict is the
 thing an officer signs behind, and the artifacts are its working. Putting them in one writer would
@@ -51,6 +56,8 @@ if TYPE_CHECKING:
     from tda.obs.nodes import NodeLog
     from tda.obs.trace import TraceLog
 
+from tda.obs.routing import ROUTING_LOG, RoutingLog
+
 RUN_LEDGER = "run.json"
 AGENT_TRACE = "trace.jsonl"
 NODE_LOG = "nodes.jsonl"
@@ -77,10 +84,12 @@ class WrittenRun:
     nodes: Path
     redaction: Redaction
     as_written: RunLedger
+    routing: Path | None = None
 
     @property
     def files(self) -> tuple[Path, ...]:
-        return (self.ledger, self.trace, self.nodes)
+        base = (self.ledger, self.trace, self.nodes)
+        return (*base, self.routing) if self.routing is not None else base
 
     def render(self) -> str:
         lines = [f"  artifacts: {self.directory}"]
@@ -97,28 +106,37 @@ def write_run(
     ledger: RunLedger,
     trace: TraceLog,
     nodes: NodeLog,
+    routing: RoutingLog | None = None,
 ) -> WrittenRun:
     """Write one run's artifacts under `root/<run_id>/`, redacting as it goes.
 
     A reader opening `run.json` should learn that the trace was redacted without having to read
-    the trace to find out — so `redactions` carries the combined count across all three files.
+    the trace to find out, so `redactions` carries the combined count across every file written.
 
     The ledger's own redactions are counted **before** it is stamped, which is not a detail. An
     earlier version stamped the trace and node counts and then redacted the serialised ledger, so a
-    `run.json` containing `[redacted:email]` reported `"redactions": []` — telling the one reader
-    the field exists for that nothing had been removed, while they were looking at the placeholder.
-    The count of what leaves must include the file doing the counting.
+    `run.json` containing `[redacted:email]` reported `"redactions": []`. It was telling the one
+    reader the field exists for that nothing had been removed, while they were looking at the
+    placeholder. The count of what leaves must include the file doing the counting.
+
+    `routing` is optional and keyword-compatible rather than required, so a caller that has not
+    wired a supervisor (there is none yet outside `tda.graph`) still writes the three files this
+    function always wrote.
     """
     directory = root / ledger.run_id
     directory.mkdir(parents=True, exist_ok=True)
 
     trace_lines, trace_redaction = redact_lines(trace.to_jsonl().splitlines())
     node_lines, node_redaction = redact_lines(nodes.to_jsonl().splitlines())
+    routing_lines, routing_redaction = (
+        redact_lines(routing.to_jsonl().splitlines()) if routing is not None else ((), Redaction())
+    )
 
-    total = _merge(_merge(trace_redaction, node_redaction), scan(_as_json(ledger)))
+    from_files = _merge(_merge(trace_redaction, node_redaction), routing_redaction)
+    total = _merge(from_files, scan(_as_json(ledger)))
     stamped = ledger.model_copy(update={"redactions": total.counts})
     ledger_text, after_stamping = redact(_as_json(stamped))
-    _check_stamp_is_inert(total, trace_redaction, node_redaction, after_stamping)
+    _check_stamp_is_inert(total, from_files, after_stamping)
 
     ledger_path = directory / RUN_LEDGER
     trace_path = directory / AGENT_TRACE
@@ -127,6 +145,11 @@ def write_run(
     ledger_path.write_text(ledger_text, encoding="utf-8")
     trace_path.write_text(_as_jsonl(trace_lines), encoding="utf-8")
     nodes_path.write_text(_as_jsonl(node_lines), encoding="utf-8")
+
+    routing_path = None
+    if routing is not None:
+        routing_path = directory / ROUTING_LOG
+        routing_path.write_text(_as_jsonl(list(routing_lines)), encoding="utf-8")
 
     from tda.obs.ledger import RunLedger as _RunLedger
 
@@ -137,6 +160,7 @@ def write_run(
         nodes=nodes_path,
         redaction=total,
         as_written=_RunLedger.model_validate_json(ledger_text),
+        routing=routing_path,
     )
 
 
@@ -149,16 +173,19 @@ def _as_json(ledger: RunLedger) -> str:
 
 
 def _check_stamp_is_inert(
-    total: Redaction, from_trace: Redaction, from_nodes: Redaction, after_stamping: Redaction
+    total: Redaction, from_files: Redaction, after_stamping: Redaction
 ) -> None:
     """The stamped counts must not themselves contain anything redactable.
 
-    They are kind names and integers, so this cannot fire — which is exactly why it is worth
-    asserting rather than assuming. If it ever does, `run.json` is under-reporting what was removed
+    They are kind names and integers, so this cannot fire. That is exactly why it is worth
+    asserting rather than assuming: if it ever does, `run.json` is under-reporting what was removed
     from it, and a silent under-report is the failure this module exists to prevent.
+
+    `from_files` is every redaction found across the sibling files (trace, nodes and, when present,
+    routing) merged into one. Callers pass whatever set of files they actually wrote.
     """
     declared = dict(total.counts)
-    for name, count in _merge(from_trace, from_nodes).counts:
+    for name, count in from_files.counts:
         declared[name] = declared.get(name, 0) - count
     ledger_only = {name: count for name, count in declared.items() if count}
     if ledger_only != dict(after_stamping.counts):
@@ -195,6 +222,21 @@ def read_run(directory: Path) -> tuple[RunLedger, TraceLog, NodeLog]:
     trace = TraceLog.from_jsonl(_read_required(directory / AGENT_TRACE))
     nodes = NodeLog.from_jsonl(_read_required(directory / NODE_LOG))
     return ledger, trace, nodes
+
+
+def read_routing(directory: Path) -> RoutingLog:
+    """A run's routing decisions, or an empty log for a run written before v0.6.0.
+
+    Kept separate from `read_run` rather than folded into its tuple, so every existing caller of
+    `read_run` keeps working unchanged and a fourth return value does not silently need unpacking
+    everywhere it is called. Unlike `trace.jsonl` and `nodes.jsonl`, an absent `routing.jsonl` is not
+    a sign of a truncated directory: it means the run predates the file, and that is a fact worth
+    reading as "nothing recorded" rather than as an error.
+    """
+    path = directory / ROUTING_LOG
+    if not path.is_file():
+        return RoutingLog()
+    return RoutingLog.from_jsonl(path.read_text(encoding="utf-8"))
 
 
 def latest_run(root: Path) -> Path | None:

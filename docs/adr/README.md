@@ -15,6 +15,7 @@ thing in the file, and rewriting history to look prescient teaches nobody anythi
 | [0007](0007-outputs-render-from-the-written-verdict.md) | Outputs render from the written verdict, and the submission is never touched | Accepted |
 | [0008](0008-the-review-gate-is-headless-and-the-evidence-is-cropped.md) | The review gate is headless, and the evidence is cropped to what was cited | Accepted |
 | [0009](0009-the-assistant-cites-or-declines.md) | The reviewer's assistant cites or declines, and computes nothing | Accepted |
+| [0010](0010-the-console-runs-in-process-and-replays-the-record.md) | The Run console runs in process, and replays the same record a finished run would | Accepted |
 
 ## Template
 

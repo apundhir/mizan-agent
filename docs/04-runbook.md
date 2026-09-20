@@ -32,7 +32,8 @@ make ci         # ~5 seconds. Should be green on a fresh clone.
 | `make corpus` | Rebuild the corpus in a temp dir and diff digests against `corpus/demo/` | PRD-83 |
 | `make run` | Verify one submission end to end; prints the verdict, the node log and what it cost, and writes `artifacts/<run_id>/` — the observability files **and** the three artefacts an officer files | PRD-89, PRD-90, PRD-92 |
 | `make trace` | Render the most recent run as a tree: which agent ran, what it was asked for, what it returned, what it cost | PRD-90 |
-| `make review` | The verification officer's screen, with the assistant's question box. Opens the latest run; `RUN=<run_id>` for an older one | PRD-91, PRD-93 |
+| `make review` | Both pages of `streamlit_app.py`: the Run console (pick a scene or upload files, watch the agents work) and the verification officer's screen, with the assistant's question box. Opens on the latest run; `RUN=<run_id>` for an older one | PRD-91, PRD-93, PRD-115 |
+| `make review-live` | Same, with live model calls - export `ANTHROPIC_API_KEY` in the shell first | PRD-115 |
 | `make eval` | Score every fixture against its derived expectation (three today; `tools/fixtures/spec.py` explains why not six) | PRD-94 |
 | `make repro` | Run twice, diff the verdict, timestamps excluded | PRD-94 |
 | `make demo` | The three scenes: pass, catch, refusal | PRD-97 |
@@ -270,19 +271,197 @@ If `test_committed_prompts_match_the_manifest` fails, a committed prompt was edi
 
 ## Publishing a release
 
+Versioning is `0.<milestone>.<patch>` through the POC: `v0.1.0` at the end of M1, `v0.6.0` at
+the end of M6. Semantic versioning of a POC's public API would be a fiction.
+
+**The order below is the procedure, not a summary of it.** A v0.6.0 release was once tagged and
+published against a `main` that the release PR had never been merged into, so the tag named a tree
+with no console in it while the release notes announced one. The step that was skipped is step 4,
+and the reason it is easy to skip is that `main` looks fine from a terminal sitting on `develop`.
+Step 5 exists to make that impossible to miss.
+
+**1. Branch, and say what is shipping.**
 ```bash
 git checkout develop && git pull
-git checkout -b release/v0.2.0
-# bump __version__ in src/tda/__init__.py; update the CHANGELOG
-make ci && make eval && make repro && make bundle
+git checkout -b release/v0.6.0
+# bump the version in BOTH pyproject.toml and src/tda/__init__.py (a test pins the pair),
+# and date the CHANGELOG heading to the day it actually ships
 ```
 
-Then PR into `main`, with **the eval scorecard for that tag in the PR body**. A release whose
-eval has regressed does not ship. After merge, tag `v0.2.0` on `main` and merge `main` back into
-`develop`.
+**2. Prove it, on the exact tree that will be tagged.** `make` is the short form; every target
+below also runs directly, which is what to use on a host where `make` itself is broken:
+```bash
+.venv/bin/ruff check src tools tests streamlit_app.py
+.venv/bin/ruff format --check src tools tests streamlit_app.py
+.venv/bin/python -m mypy
+.venv/bin/python tools/guard/import_guard.py
+.venv/bin/python tools/guard/agent_schema_lint.py
+.venv/bin/python tools/guard/secret_guard.py
+.venv/bin/python tools/policy/validate_policy.py
+.venv/bin/python -m pytest
+.venv/bin/python -m tda.eval --fixtures corpus/fixtures --out artifacts/eval
+.venv/bin/python -m tda.eval.repro
+```
 
-Versioning is `0.<milestone>.<patch>` through the POC — `v0.1.0` at the end of M1, `v0.6.0` at
-the end of M6. Semantic versioning of a POC's public API would be a fiction.
+**3. Commit and push the release branch.**
+
+**4. Open the release PR into `main`, and merge it.** With **the eval scorecard for that tag in
+the PR body**: a release whose eval has regressed does not ship. `main` carries a `pull_request`
+rule, so there is no direct push and no way to do this by accident from a shell.
+
+**5. Check that `main` actually moved before you tag anything.**
+```bash
+git checkout main && git pull
+git rev-list --count origin/develop..origin/main   # expect 0 or more, never 34
+git log --oneline -1                               # this is the commit about to be tagged
+```
+If `main`'s head is still the previous release's merge commit, step 4 did not happen. Tagging here
+is what produces a release that names a tree it does not contain.
+
+**6. Tag the merge commit on `main`, and push the tag.**
+```bash
+git tag -a v0.6.0 -m "v0.6.0: <what shipped>"
+git push origin v0.6.0
+```
+
+**7. Build the bundle from the tagged tree**, not from whatever the working copy happens to hold.
+The manifest records the commit and whether the tree was dirty, so a clean checkout matters:
+```bash
+.venv/bin/python tools/release/bundle.py      # → dist/mizan-<version>.tar.gz
+```
+
+**8. Publish the GitHub release** against that tag, with the bundle attached.
+
+**9. Merge `main` back into `develop`.** `develop` requires a passing status check, so a direct
+push of a fresh merge commit is refused, because the check has never run against it. Open a PR from
+`main` into `develop` and merge that instead. Skipping this leaves the two branches permanently
+apart by one merge commit.
+
+## Deploying to Streamlit Community Cloud
+
+The hosted demo (PRD-115) is `streamlit_app.py`, deployed from `apundhir/mizan-agent`'s `main`
+branch, on Streamlit Community Cloud's own free tier - no Docker in this path, no server to
+provision.
+
+**First deploy.**
+
+1. At [share.streamlit.io](https://share.streamlit.io), click **Create app**, then **Yup, I have
+   an app**.
+2. Repository `apundhir/mizan-agent`, branch `main`, main file path `streamlit_app.py`.
+3. **Advanced settings**: Python version `3.12`. Paste this into **Secrets**, verbatim:
+   ```toml
+   MIZAN_LIVE_MODE = "false"
+   ```
+   Leave `MIZAN_SINGLE_OPERATOR` out entirely. It tells the review screen and the console's replay
+   panel that every run on disk belongs to one trusted person - correct for `docker compose` and
+   `make review` on somebody's own machine, never correct for a link more than one viewer can
+   reach. Absent is the safe default; do not add it here.
+4. Deploy. The first build installs everything in `requirements.txt`; later pushes to `main`
+   redeploy in place, code changes landing in seconds and dependency changes taking longer.
+
+**A public deployment runs prepared scenes only, and that is the default.**
+`MIZAN_UPLOAD_ENABLED` is what offers a viewer the "Your own files" path, and leaving it out of the
+Secrets box, as step 3 above does, means the console never renders an uploader and never spawns a
+verification subprocess. The five scenes are what a public audience came to see, and they run this
+repository's own committed corpus. Everything under the next heading applies only to a deployment
+that turns the flag on, which on this platform means one you have decided to trust.
+
+### If you enable uploads
+
+**An uploaded submission verifies in its own resource-limited subprocess.** A scene's files are
+this repository's own corpus and run in process, live, stage by stage; an upload is the one input
+this codebase has never authored, so `tda.review.sandbox` runs `mizan run` against it as a child
+process with a memory limit (`RLIMIT_AS`, Linux only - see ADR-0010 §7 for why), a CPU limit
+(`RLIMIT_CPU`), a wall-clock timeout on top, and a cap on how many such children may run at once.
+The defaults (1 GiB, 30 CPU seconds, 90 seconds wall clock, 2 concurrent) leave headroom above what
+the demo submission itself measures and rarely need changing; they are configurable, four more
+optional root-level secrets, because the right ceiling depends on the hosting tier, which this
+codebase does not control:
+```toml
+MIZAN_SANDBOX_MAX_MEMORY_BYTES = "1073741824"
+MIZAN_SANDBOX_MAX_CPU_SECONDS = "30"
+MIZAN_SANDBOX_TIMEOUT_SECONDS = "90"
+MIZAN_SANDBOX_MAX_CONCURRENT = "2"
+```
+Leave them out unless a specific hosting tier's own memory ceiling calls for a lower number, or a
+real submission's size calls for a higher one. Unlike the console's other numeric settings, a
+malformed value here is refused rather than quietly falling back to the default - a typo in a
+resource limit is exactly the kind of mistake that should surface, not silently run under a number
+nobody chose - and the refusal reaches a viewer as one failed run, not a broken deployment; the
+first run after a bad edit will say so.
+
+**These two numbers are a bound chosen before this app has ever run on the real container, not a
+measurement of it.** Streamlit Community Cloud publishes only a range for what an app's container
+may get ("690MB minimum, 2.7GB maximum" per its own docs, checked 2026-09-19) - a G5 security
+review found the original default sized against the demo submission's own cost alone, with nothing
+capping how many children could run at once, could let a handful of concurrent uploads push the
+whole container, parent included, past whatever it was actually given.
+
+**This calibration is a prerequisite for enabling uploads, not for launching.** A scenes-only
+deployment starts no child process, so neither number is ever reached and neither gates the public
+URL going out. Before setting `MIZAN_UPLOAD_ENABLED` on any deployment more than one person can
+reach, measure both: watch memory during "First checks after any deploy" below and during "An
+upload" in "Testing the hosted demo", then lower `MIZAN_SANDBOX_MAX_MEMORY_BYTES` or
+`MIZAN_SANDBOX_MAX_CONCURRENT` if the container's own ceiling turns out to be nearer the low end
+of that range than the demo submission's own cost leaves room for.
+
+**A root-level secret becomes an environment variable; a secret inside a `[section]` does not.**
+This is the whole safety property `tda.review.live` depends on, and it is Streamlit's own
+documented behaviour, not this codebase's assumption - so the key must go in at the top level of
+the Secrets box, never nested under a heading.
+
+**Privacy.** App settings → **Sharing** → **Only specific people can view this app**, then add
+viewers by email; each gets a link and signs in with Google OAuth or a single-use emailed link.
+The account is allowed one private app at a time - a second private app (a spike, a second demo)
+needs the first made public or deleted first.
+
+**First checks after any deploy.** Open the app's own URL, not `localhost`: the Run page lists
+five scenes and **no uploader of any kind**, "A clean quarter" reaches PASS, "Open in Review"
+carries the run across, and the sidebar reads *"Live mode: off. Provider: replay (committed
+cassettes, no API call)."* Then, in a
+**second browser profile** (or an invited viewer's own account) that has never used the console in
+this session: confirm the Review page offers no run to pick and the console's replay panel says
+"No past runs yet" - the actual property `MIZAN_SINGLE_OPERATOR` being absent is supposed to buy,
+checked against the deployed app rather than only against `make ci`. If any of those is wrong, do
+not send the link out.
+
+**Before a live demo (viewer-facing, don't skip):**
+
+- Open the app yourself first. Streamlit Community Cloud sleeps an app after twelve hours with no
+  traffic; a sleeping app shows a wake-up page to the *first* viewer who opens it, developer or
+  not, and that should not be the audience.
+- Confirm the sidebar still reads "Live mode: off" before deciding whether this demo needs a live
+  run at all - most of what there is to show works in replay, for free, with no key anywhere.
+
+**Enabling live mode for a demo.**
+
+1. Create a demo-only Anthropic API key, in its own workspace, with a monthly spend limit.
+2. App settings → **Secrets**, add two root-level lines and **Save**:
+   ```toml
+   MIZAN_LIVE_MODE = "true"
+   ANTHROPIC_API_KEY = "sk-ant-..."
+   ```
+3. **Reboot the app** (overflow menu, or "Manage app" → Reboot) regardless of whether the platform
+   already restarts it on a secrets save - a demo is the wrong moment to find out which.
+4. Verify the sidebar reads *"Live mode: on. Credential: present. Live runs per session: 3. Per
+   process: 20."* before anyone else opens the link.
+
+**After the demo, in order:** set `MIZAN_LIVE_MODE` back to `"false"`, delete the
+`ANTHROPIC_API_KEY` line, Save, Reboot, then revoke the key in the Anthropic console. On any
+suspicion the key leaked - a screen share, a pasted log - revoke first and rotate after; do not
+wait to finish the checklist.
+
+**Rollback.** A bad `main` redeploys automatically on the next push, so the fix is a revert PR,
+not a platform action: `git revert` the offending commit, push to `main`, and the app rebuilds
+within minutes. If `main` cannot be fixed inside the hour, deploy a second app from the last known
+good tag rather than leave a broken one live. **Kill switch**, fastest first: remove viewers under
+Sharing (link stops working immediately for everyone but the owner); failing that, delete the app
+from the overflow menu.
+
+**Reading logs without leaking a key.** "Manage app" opens the log pane; logs can be downloaded
+from the same overflow menu. Before pasting a log anywhere - an issue, a chat, a message to
+Anthropic support - search it for `sk-ant-` first. The redactor and the secret guard both use that
+same prefix for exactly this reason; a log is not an artifact this codebase redacts on its own.
 
 ## Things that are not bugs
 
@@ -326,6 +505,12 @@ the end of M6. Semantic versioning of a POC's public API would be a fiction.
 - **Occupancy reported as `not_verifiable`** when the inventory reference is missing. That is
   D-RNA-04 working: rooms available is a property attribute and is never inferred from the
   reservations. The honest output is "not verifiable, here is what is missing".
+- **An upload shows "Verifying your submission…" with no live chips, unlike a scene.** Deliberate,
+  not a stalled page: an uploaded submission verifies in a resource-limited subprocess
+  (`tda.review.sandbox`, ADR-0010 §7), and that subprocess writes its own `nodes.jsonl` and
+  `trace.jsonl` only once it finishes, so there is nothing live to poll mid-run the way there is
+  for a scene running in process. The complete timeline and verdict appear together as soon as the
+  subprocess exits.
 
 ## What a finished run leaves you
 
@@ -375,10 +560,17 @@ never whatever was last sitting in `artifacts/`; see `tools/release/bundle.py` o
 
 ```bash
 make run                             # produces artifacts/<run_id>/
-make review                          # opens the screen on that run
+make review                          # opens the console and the screen on that run
 make review RUN=run-a1b2c3d4e5f6     # or an older one
 make review SUBMISSION=/data/hotel-x # if the run was not against the demo corpus
 ```
+
+A run does not have to start on the command line first. `make review` on its own opens the Run
+page: pick one of five prepared scenes or upload a workbook, reports and inventory, press Run, and
+watch the same five stages and agent calls this section describes - the stage chips turn green in
+order, each agent card fills in as its call returns, and the verdict panel appears the moment the
+run finishes. **Open in Review** on that panel carries the run id across to the screen below, so
+everything from here on applies unchanged to a run started either way.
 
 **Pass the same `SUBMISSION` you ran with.** The screen reads the submitted files to crop the
 evidence, and it checks each one against the digest `run.json` recorded — so pointing it at the
@@ -456,6 +648,54 @@ warning beside readable prose is a warning nobody acts on.
 **Nothing the assistant says changes the verdict, and nothing it says is needed to decide one.**
 If it is unavailable, the screen works exactly as it did before it existed.
 
+## Testing the hosted demo
+
+Everything below runs against the deployed URL, in a real browser, not `localhost` - a change that
+only ever ran through `make ci` and a local `make review` has not been tested against the
+environment it actually ships to. None of it needs a key; do this in replay first, live mode
+second, and only if the demo calls for it.
+
+1. **Cold start.** Open the app from a link nobody has opened in the last twelve hours (or reboot
+   it first). The Run page should list five scenes within the first render; if the first scene
+   selected times out, the fixture build (`corpus/fixtures/F2`, `F3`, built once per server
+   process, not shipped in the repo) is the first place to look.
+2. **A clean pass, twice.** Run "A clean quarter" to PASS. Reload the page in a second tab and run
+   it again. Both should reach the same verdict; two different tabs are two different
+   `st.session_state`s but the same server process, and this is what proves the process-wide
+   pieces (the fixture cache, the live-run counter) survive that correctly.
+3. **A catch.** Run "A mistyped guest count" to FAIL, open the two findings' agent cards, expand
+   "What it was shown" on the mapping card, and confirm no cell value from the workbook appears
+   verbatim where a `<value>` placeholder is expected - the redaction boundary the console shares
+   with the written artifacts.
+4. **Handoff.** From that same run, click **Open in Review**, confirm the URL changes to the
+   `review` page and the run id carries across, accept one finding, and confirm the verdict panel
+   updates without a page reload.
+5. **A rejection.** Run "A missing monthly report." REJECTED, zero agent cards lit, zero routing
+   lines - a rejected submission must never reach an agent, on the hosted app exactly as
+   `tests/unit/test_console_pages.py` proves it locally.
+6. **No upload path at all.** On a public deployment this is the check, not the upload itself:
+   confirm there is no submission chooser, no file uploader, and no declared-hotel or period box
+   anywhere on the Run page, and that the notice above the scenes says this deployment accepts no
+   uploads. A hosted app offering an uploader means `MIZAN_UPLOAD_ENABLED` reached the Secrets box
+   by accident; remove it and reboot before sending the link out. *On a deployment you have
+   deliberately given the flag to*: download the demo workbook and PDFs from a completed run's
+   evidence, change one figure, and submit through **Your own files**. The page should show only
+   "Verifying your submission…" with no live stage chips while the sandboxed subprocess runs, then
+   the complete timeline and verdict at once, and not an error; see ADR-0010 §7 for that trade.
+7. **Private sharing.** From a browser session that has never been invited, confirm the app
+   refuses; from an invited account, confirm it opens.
+8. **Cross-viewer isolation.** From the invited account's session that ran step 2, in a *different*
+   browser or a private window signed in as a second invited viewer who has not touched the Run
+   page yet: open Review directly. It must offer no run to pick, and the console's own replay panel
+   must say "No past runs yet" - not the first viewer's run or its id. This is the one check that
+   only means something against the deployed app; `tests/unit/test_console_pages.py` proves the
+   same property with two independent test sessions, but a deployment that quietly turned
+   `MIZAN_SINGLE_OPERATOR` on would still pass every local test.
+9. **Live mode, only if this demo needs it.** Follow "Enabling live mode for a demo" above, run
+   one scene with `anthropic` selected as the provider, and open the mapping agent's card: its
+   caption line names the provider mode that answered - `mapping/v1 - anthropic (...)`, not
+   `replay`. Then follow the after-the-demo steps in order before closing the laptop.
+
 ## Where to look when a number looks wrong
 
 1. **`docs/01-definitions.md`** — find the clause. Every metric rule has a citable id.
@@ -508,6 +748,12 @@ An agent that returned a *number* is not a tuning problem; it is a guard failure
 ```
   redacted from the artifacts: email x1, phone x1  (personal data in the submitted workbook, not from this system)
 ```
+
+The same line can name `api_key` instead. That one is not personal data in a workbook - it is the
+shape of an Anthropic key (`sk-ant-...`), and the only way it reaches an artifact is a viewer
+pasting one into an uploaded cell or the assistant's question box on the Run console. Same
+handling: nothing to fix, nothing recoverable, and the count in `run.json` is deliberately all it
+says.
 
 This is not a defect in the pipeline and there is nothing to fix here. The submitted workbook's
 label cells reach the mapping agent's prompt verbatim — they have to, or the agent cannot tell

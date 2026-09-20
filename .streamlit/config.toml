@@ -1,0 +1,83 @@
+# Tracked, because Streamlit Community Cloud reads this file from the checkout - there is no
+# separate place to set it. Local `make review` picks it up too, so the two environments do not
+# quietly diverge on file-watching or upload limits.
+
+[server]
+headless = true
+fileWatcherType = "none"
+maxUploadSize = 10
+
+[browser]
+gatherUsageStats = false
+
+[client]
+showErrorDetails = "type"
+
+# ── theme ────────────────────────────────────────────────────────────────────
+# Read by Streamlit Community Cloud and by `make review` alike, so the hosted demo and a local run
+# do not diverge on how anything looks.
+#
+# The palette is the one every diagram in README.md already uses, because the colours carry the
+# product's own argument: blue is deterministic code, amber is where a model was involved, green is
+# an artefact that was produced, red is a guard that refused. A viewer who reads the README and
+# then opens the app meets one visual language, not two.
+#
+# The seven semantic tokens below are what `st.badge(..., color="green")` resolves against. They
+# exist so that no module has to hard-code a hex for a status again: before this, the console chips
+# and the review screen's severity chips used unrelated palettes, both pinned to dark text on pale
+# fills, which is why dark mode was unreadable. One exception stays deliberate and is documented
+# where it lives: `tda.review.present.SEVERITY_COLOURS` mirrors the fills `tda.outputs.workbook`
+# writes into the annotated spreadsheet, so that an officer comparing the screen against the file
+# does not meet one finding described two ways.
+[theme]
+base = "light"
+primaryColor = "#2b6cb0"
+backgroundColor = "#fdfcfa"
+secondaryBackgroundColor = "#f4f1ea"
+textColor = "#1f2937"
+linkColor = "#2b6cb0"
+borderColor = "#e4ded2"
+dataframeBorderColor = "#e4ded2"
+codeBackgroundColor = "#f4f1ea"
+showWidgetBorder = true
+baseRadius = "0.5rem"
+buttonRadius = "0.5rem"
+baseFontSize = 16
+font = "Source Sans Pro, -apple-system, BlinkMacSystemFont, sans-serif"
+headingFont = "Source Serif Pro, Georgia, serif"
+codeFont = "IBM Plex Mono, ui-monospace, SFMono-Regular, monospace"
+greenColor = "#2f855a"
+redColor = "#c53030"
+orangeColor = "#b8862b"
+yellowColor = "#8a6d1f"
+blueColor = "#2b6cb0"
+violetColor = "#6b46c1"
+grayColor = "#6b7280"
+
+[theme.sidebar]
+backgroundColor = "#f4f1ea"
+borderColor = "#e4ded2"
+
+# Same argument, re-pitched for a dark background rather than inverted mechanically: the hues hold
+# their meaning, the fills stop being pale, and text contrast is the theme's job rather than each
+# call site's.
+[theme.dark]
+primaryColor = "#63a4dd"
+backgroundColor = "#11151a"
+secondaryBackgroundColor = "#1b2128"
+textColor = "#e8eaed"
+linkColor = "#63a4dd"
+borderColor = "#2c343d"
+dataframeBorderColor = "#2c343d"
+codeBackgroundColor = "#1b2128"
+greenColor = "#68d391"
+redColor = "#fc8181"
+orangeColor = "#e2a336"
+yellowColor = "#f6e05e"
+blueColor = "#63b3ed"
+violetColor = "#b794f4"
+grayColor = "#9aa4b2"
+
+[theme.dark.sidebar]
+backgroundColor = "#161b21"
+borderColor = "#2c343d"

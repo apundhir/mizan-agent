@@ -47,6 +47,7 @@ REQUIRED_RUN_FILES = frozenset(
         "run/run.json",
         "run/trace.jsonl",
         "run/nodes.jsonl",
+        "run/routing.jsonl",
     }
 )
 REQUIRED_EVAL_FILES = frozenset({"eval/scorecard.json", "eval/report.md"})
@@ -67,8 +68,8 @@ def built_archive(tmp_path_factory: pytest.TempPathFactory) -> Path:
 @pytest.mark.eval
 def test_archive_contains_every_required_file(built_archive: Path) -> None:
     """Every file an officer or auditor would need is in the archive, and nothing required is
-    missing: the verdict, the memo, the annotated workbook, the run ledger and trace, and the
-    eval report and scorecard."""
+    missing: the verdict, the memo, the annotated workbook, the run ledger, trace and routing
+    log, and the eval report and scorecard."""
     with tarfile.open(built_archive) as archive:
         names = set(archive.getnames())
 

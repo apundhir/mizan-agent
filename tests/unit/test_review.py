@@ -39,6 +39,7 @@ from tests.unit.test_outputs import (
     verdict_with,
 )
 
+import tda.review.app as app
 from tda.contracts import (
     ExcelRef,
     ExtractionSummary,
@@ -501,7 +502,10 @@ def test_the_cell_table_makes_exactly_one_cell_unmistakable() -> None:
 
     html = cell_table(view)
 
-    assert html.count("border:2px solid #c00000") == 1
+    # The thickened border, not its colour: every other cell and header draws 1px, so a count of
+    # one is the property being claimed. Asserting the hex pinned the grid to a light background,
+    # which is what made it unreadable in dark mode before the theme existed.
+    assert html.count("border:2px solid") == 1
     assert "1285" in html
     assert "January 2026" in html
 
@@ -549,6 +553,69 @@ def test_a_decided_finding_says_what_was_decided_and_by_whom() -> None:
 
 def test_a_finding_headline_names_what_is_in_dispute() -> None:
     assert headline(material_finding()) == "F-0001 · room_nights_sold:2026-01"
+
+
+# ── where a run's evidence lives ──────────────────────────────────────────────
+#
+# Not widgets - `env_path` and `submission_for` are plain functions the console reuses, and the
+# thing worth proving is the fallback order, not anything Streamlit renders.
+
+
+def test_an_unset_environment_variable_falls_back_to_the_default(tmp_path: Path) -> None:
+    fallback = tmp_path / "fallback"
+    assert app.env_path("MIZAN_DOES_NOT_EXIST", fallback) == fallback
+
+
+def test_an_empty_environment_variable_is_treated_as_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`make review` used to export the variable with nothing after the `=` when the caller left it
+    unspecified, and `Path("")` is `Path(".")` - the whole screen pointed at the repository root."""
+    fallback = Path("/fallback")
+    monkeypatch.setenv("MIZAN_TEST_PATH", "")
+    assert app.env_path("MIZAN_TEST_PATH", fallback) == fallback
+    monkeypatch.setenv("MIZAN_TEST_PATH", "   ")
+    assert app.env_path("MIZAN_TEST_PATH", fallback) == fallback
+
+
+def test_a_set_environment_variable_wins_over_the_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MIZAN_TEST_PATH", "/somewhere")
+    assert app.env_path("MIZAN_TEST_PATH", Path("/fallback")) == Path("/somewhere")
+
+
+def test_submission_for_prefers_a_console_session_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = tmp_path / "run-0123456789ab"
+    run.mkdir()
+    staged = run / "submission"
+    staged.mkdir()
+    session_dir = tmp_path / "from-console"
+    session_dir.mkdir()
+
+    import streamlit as st
+
+    monkeypatch.setitem(st.session_state, app.SESSION_SUBMISSION, str(session_dir))
+
+    assert app.submission_for(run) == session_dir
+
+
+def test_submission_for_falls_back_to_the_runs_own_staged_submission(tmp_path: Path) -> None:
+    run = tmp_path / "run-0123456789ab"
+    staged = run / "submission"
+    staged.mkdir(parents=True)
+
+    assert app.submission_for(run) == staged
+
+
+def test_submission_for_falls_back_to_the_environment_then_the_demo_corpus(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = tmp_path / "run-0123456789ab"  # no submission/ staged under it
+
+    monkeypatch.delenv("MIZAN_SUBMISSION", raising=False)
+    assert app.submission_for(run) == app.DEFAULT_SUBMISSION
+
+    monkeypatch.setenv("MIZAN_SUBMISSION", str(SUBMISSION))
+    assert app.submission_for(run) == SUBMISSION
 
 
 def test_importing_the_screen_renders_nothing(tmp_path: Path) -> None:

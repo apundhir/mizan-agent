@@ -925,3 +925,25 @@ def test_the_screen_asks_only_through_the_headless_layer() -> None:
     # PRD-93 asks for the box on the findings screen. A `_ask_box` nobody calls is a question box
     # that exists in the module and not on the screen, and every other test here would still pass.
     assert "_ask_box(" in inspect.getsource(app.main)
+
+
+def test_a_policy_asking_for_anthropic_is_refused_when_live_mode_is_off(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`app._provider()` used to call `tda.cli.build_provider` directly, so a deployment whose
+    `policy.yaml` said `anthropic` would reach the SDK regardless of where it was hosted. Routed
+    through the live-mode gate, the same policy is refused on screen instead - the failure an
+    officer sees names why, rather than an opaque error three layers down in the client."""
+    import tda.review.app as app
+    from tda.review.live import LiveModeError
+
+    monkeypatch.delenv("MIZAN_LIVE_MODE", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    policy = load_policy()
+    live_policy = policy.model_copy(
+        update={"model": policy.model.model_copy(update={"provider": "anthropic"})}
+    )
+    monkeypatch.setattr(app, "load_policy", lambda: live_policy)
+
+    with pytest.raises(LiveModeError, match="live mode is off"):
+        app._provider()

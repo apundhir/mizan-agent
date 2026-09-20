@@ -1,11 +1,11 @@
 # The officer's workflow is two steps against one image: verify a submission, then open the screen
-# on that run. So `cli` and `review` share a build and a set of mounts, and differ only in what
-# they are asked to do.
+# on that run - and from the same page, the Run console for a scene or an upload. So `cli` and
+# `review` share a build and a set of mounts, and differ only in what they are asked to do.
 #
 #   mkdir -p ../artifacts                                   # see the `artifacts` mount below
 #   APP_UID=$(id -u) APP_GID=$(id -g) docker compose -f docker/compose.yaml build
 #   docker compose -f docker/compose.yaml run --rm cli run   # writes artifacts/<run_id>/
-#   docker compose -f docker/compose.yaml up review          # http://127.0.0.1:8501
+#   docker compose -f docker/compose.yaml up review          # http://127.0.0.1:8501/run
 #
 # No API key is passed and none is read. The model layer runs in `replay` against the cassettes
 # baked into the image (policy.yaml `model.provider`), so a cassette miss is a hard error and there
@@ -39,6 +39,17 @@ x-mizan: &mizan
     # Empty is falsy to the app, which then picks the most recent run. Set it to review an older one.
     MIZAN_RUN: ${MIZAN_RUN:-}
     MIZAN_SUBMISSION: ${MIZAN_SUBMISSION:-/app/corpus/demo/submission}
+    # No key is passed above, so this is already the only reachable state - explicit rather than
+    # implied, so a reader of this file does not have to know that fact to see it enforced.
+    MIZAN_LIVE_MODE: "false"
+    # One container, started by one person, reviewing their own artifacts/ mount - the trusted
+    # context tda.review.app.single_operator's default (off) is deliberately NOT built for. A
+    # hosted deployment reachable by more than one viewer must never set this.
+    MIZAN_SINGLE_OPERATOR: "true"
+    # Same trusted context, same reasoning: the person who started this container is the only one
+    # who can reach it, so verifying their own files is theirs to ask for. The public demo leaves
+    # this unset and runs prepared scenes only.
+    MIZAN_UPLOAD_ENABLED: "true"
 
 services:
   review:

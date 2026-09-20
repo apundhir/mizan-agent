@@ -58,6 +58,29 @@ def chip_colour(finding: Finding) -> str:
     return SEVERITY_COLOURS.get(finding.severity.value, "#EEEEEE")
 
 
+def tone(finding: Finding) -> str:
+    """The same judgement `chip_colour` makes, as a theme colour name rather than a hex.
+
+    `chip_colour` above returns the annotated workbook's own fill for this finding, and must keep
+    doing so: an officer reading the spreadsheet beside the screen has to meet one visual language,
+    not two. But those fills are Excel conditional-formatting pastels chosen to sit under black
+    text on white paper, and a screen that hard-codes them also hard-codes the dark text they need,
+    which is how this codebase ended up unreadable in dark mode.
+
+    So the screen asks for a *name* and lets `.streamlit/config.toml` supply the value, in whichever
+    direction the viewer's own theme runs. The mapping is the same argument `chip_colour` makes: a
+    definitional item is amber because nobody is at fault, not red, and `SEVERITY_COLOURS`' own
+    reason for existing (D-MAT-06 keeps a V2 out of the hotel error count) is why.
+    """
+    if finding.variance_class is VarianceClass.DEFINITIONAL:
+        return "orange"
+    return {
+        Severity.BLOCKING.value: "blue",
+        Severity.MATERIAL.value: "red",
+        Severity.INFORMATIONAL.value: "gray",
+    }.get(finding.severity.value, "gray")
+
+
 def cause_line(finding: Finding) -> str:
     """The cause, in the words the reviewer needs to act on it.
 
@@ -182,14 +205,23 @@ def cell_table(view: CellView) -> str:
     )
 
 
-_TABLE: Final = "border-collapse:collapse;font-size:13px;font-family:system-ui,sans-serif;"
+# Theme-neutral on purpose. These used to pin dark text on a white fill, which meant the one grid
+# a reviewer has to read was unreadable on a dark background - the screen's own evidence, lost to a
+# hard-coded `#fff`. `color:inherit` and translucent greys take whatever the active theme provides,
+# so the grid follows `.streamlit/config.toml` in both directions. The target cell keeps a real red,
+# because "this is the cell in dispute" is the one thing here that must not be subtle, and it is
+# stated by a border and a wash rather than by a text colour that a dark theme would fight.
+_TABLE: Final = "border-collapse:collapse;font-size:13px;font-family:inherit;"
 _TH: Final = (
-    "border:1px solid #c8c8c8;background:#f1f1f1;color:#333;padding:4px 8px;"
-    "font-weight:600;text-align:center;"
+    "border:1px solid rgba(128,128,128,0.35);background:rgba(128,128,128,0.12);color:inherit;"
+    "padding:4px 8px;font-weight:600;text-align:center;"
 )
-_TD: Final = "border:1px solid #c8c8c8;padding:4px 8px;color:#222;background:#fff;"
+_TD: Final = (
+    "border:1px solid rgba(128,128,128,0.35);padding:4px 8px;color:inherit;background:transparent;"
+)
 _TD_TARGET: Final = (
-    "border:2px solid #c00000;padding:4px 8px;color:#222;background:#fff3f3;font-weight:700;"
+    "border:2px solid #c53030;padding:4px 8px;color:inherit;background:rgba(197,48,48,0.14);"
+    "font-weight:700;"
 )
 
 

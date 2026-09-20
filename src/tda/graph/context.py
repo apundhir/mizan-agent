@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from tda.agents.runtime import AgentRunner
+from tda.agents.supervisor import Supervisor
 from tda.agents.tools import ToolRegistry
 from tda.contracts import FindingIds
 from tda.obs.nodes import NodeLog
@@ -63,6 +64,7 @@ class RunContext:
     usage: UsageLedger = field(default_factory=UsageLedger)
     nodes: NodeLog = field(default_factory=NodeLog)
     finding_ids: FindingIds = field(default_factory=FindingIds)
+    supervisor: Supervisor = field(default_factory=Supervisor)
     _checkpoint: UsageDelta = field(default_factory=UsageDelta)
     _trace_mark: int = 0
 
@@ -106,7 +108,7 @@ class RunContext:
             output_tokens=now.output_tokens - self._checkpoint.output_tokens,
         )
 
-    def runner_for(self, registry: ToolRegistry) -> AgentRunner:
+    def runner_for(self, registry: ToolRegistry, *, node: str) -> AgentRunner:
         """A runner over this run's provider and recorders, with a registry bound to one agent's data.
 
         Needed because a tool registry is **per workbook, per finding** — `tda.agents.tools` refuses
@@ -114,6 +116,10 @@ class RunContext:
         built until the node that opens the workbook has opened it. What must *not* be per node is
         the trace and the ledger: those are the run's, and a node that quietly made its own would
         report its own calls into a log nobody reads.
+
+        `node` is required and keyword-only rather than optional, so a caller cannot forget to name
+        the node it is calling from. `Supervisor.route()` records that name on every decision it
+        makes, and the one place this method is called has exactly one node to give it.
         """
         return AgentRunner(
             self.provider,
@@ -121,6 +127,8 @@ class RunContext:
             registry=registry,
             trace=self.trace,
             usage=self.usage,
+            supervisor=self.supervisor,
+            node=node,
         )
 
     @classmethod
@@ -133,16 +141,28 @@ class RunContext:
 
         The default runner carries an empty registry, which is right for an agent whose allowlist is
         empty (the critic) and wrong for every other one. Those get `runner_for`.
+
+        The supervisor is built once here, from this run's policy, and shared between the default
+        runner and every runner `runner_for` builds afterwards - one budget for the whole run, not
+        one per node.
         """
         trace = TraceLog()
         usage = UsageLedger()
+        supervisor = Supervisor.from_policy(policy)
         return cls(
             policy=policy,
             period=period,
             provider=provider,
             runner=AgentRunner(
-                provider, policy=policy, registry=ToolRegistry(), trace=trace, usage=usage
+                provider,
+                policy=policy,
+                registry=ToolRegistry(),
+                trace=trace,
+                usage=usage,
+                supervisor=supervisor,
+                node="run",
             ),
             trace=trace,
             usage=usage,
+            supervisor=supervisor,
         )

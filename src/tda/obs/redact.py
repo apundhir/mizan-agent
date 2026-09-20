@@ -43,6 +43,14 @@ passes. Nothing structural distinguishes it from `A9: Deluxe King`, and a rule t
 would flag the second on every run. What closes that gap is the corpus design — no names exist to
 leak — and, for a real pilot, the pseudonymisation boundary the build plan defers until a real-file
 pilot is agreed.
+
+## One pattern here is not personal data
+
+`api_key` exists for a different reason than the other four. The Run console accepts uploads and
+questions from whoever holds its link, and a credential-shaped string can reach an artifact the
+same way a phone number can: typed into a workbook cell, or into a question for the assistant.
+Nothing in this codebase ever writes its own key into a workbook or a trace, so a hit here always
+means a person typed one, and the advice is to rotate it regardless of how it got there.
 """
 
 from __future__ import annotations
@@ -75,6 +83,21 @@ class Pattern:
 
 
 PATTERNS: Final[tuple[Pattern, ...]] = (
+    Pattern(
+        name="api_key",
+        # Not personal data - the one pattern here that is not. The Run console (v0.6.0) accepts
+        # uploads and questions from whoever holds the app's link, so a credential-shaped string
+        # can arrive in a workbook cell or a typed question the same way a phone number can.
+        # Nothing in this system writes its own key into a workbook or a trace; this catches one
+        # that a person typed. Identical regex to `tools/guard/secret_guard.py`'s Anthropic key
+        # pattern - see `tests/unit/test_obs.py` for the test that keeps the two in step.
+        regex=re.compile(r"sk-ant-[A-Za-z0-9_-]{20,}"),
+        advice=(
+            "A credential-shaped string reached an artifact. Nothing in this system writes its own "
+            "key, so it was typed into a workbook cell or a question. Rotate it in the Anthropic "
+            "Console regardless: a key in an artifact is a key in a file somebody will share."
+        ),
+    ),
     Pattern(
         name="email",
         # Unambiguous: an `@` between two label-shaped runs with a dotted TLD. No workbook header

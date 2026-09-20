@@ -368,3 +368,72 @@ def test_the_secret_guard_covers_the_anthropic_key_formats() -> None:
     assert "Anthropic admin key" in names
     assert secret_guard.PATTERNS[0].regex.search("sk-ant-api03-" + "A" * 24)
     assert not secret_guard.PATTERNS[0].regex.search("sk-ant-xxx")
+
+
+# ── the path pattern: a secrets file is a finding whatever it contains ───────
+
+
+def _bare_repository(tmp_path: Path, files: dict[str, str]) -> Path:
+    """A minimal git repository holding exactly the files named, all tracked.
+
+    Separate from `_as_repository`, which copies a fixed fixture tree: these tests plant a specific
+    path rather than a specific credential, and the path is the whole point of each one.
+    """
+    root = tmp_path / "repo"
+    root.mkdir()
+    for name, content in files.items():
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+    for argv in (["init", "-q"], ["add", "-A"]):
+        subprocess.run(["git", "-C", str(root), *argv], check=True, capture_output=True)
+    return root
+
+
+def test_the_secret_guard_rejects_a_tracked_secrets_toml_even_with_no_key_in_it(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The file itself is the finding. A `secrets.toml` holding only `MIZAN_LIVE_MODE = "false"`
+    is still a file that exists to hold a credential, and a developer testing live mode locally is
+    one `git add -A` away from tracking the version that does hold one."""
+    root = _bare_repository(tmp_path, {".streamlit/secrets.toml": 'MIZAN_LIVE_MODE = "false"\n'})
+
+    exit_code = secret_guard.main(["--root", str(root)])
+
+    assert exit_code == 1
+    message = capsys.readouterr().err
+    assert ".streamlit/secrets.toml" in message
+    assert "Secrets settings" in message
+
+
+@pytest.mark.parametrize("name", [".env", ".env.local", ".env.local.bak", "deploy/secrets.toml"])
+def test_the_secret_guard_rejects_any_tracked_env_file_except_the_example(
+    tmp_path: Path, name: str
+) -> None:
+    root = _bare_repository(tmp_path, {name: "placeholder\n"})
+
+    assert secret_guard.main(["--root", str(root), "--quiet"]) == 1
+
+
+def test_a_tracked_streamlit_config_is_not_flagged(tmp_path: Path) -> None:
+    """The control. `config.toml` holds server settings, not secrets, and must stay committed."""
+    root = _bare_repository(tmp_path, {".streamlit/config.toml": "[server]\nheadless = true\n"})
+
+    assert secret_guard.main(["--root", str(root), "--quiet"]) == 0
+
+
+def test_a_toml_style_key_assignment_in_a_tracked_note_is_caught(tmp_path: Path) -> None:
+    """The content pattern already matches the TOML form, not only `KEY=value`. Checked here
+    rather than assumed, since the console's secrets are written as `NAME = "value"`."""
+    root = _bare_repository(tmp_path, {"notes.md": f'ANTHROPIC_API_KEY = "{PLANTED_KEY}"\n'})
+
+    assert secret_guard.main(["--root", str(root), "--quiet"]) == 1
+
+
+def test_the_artifact_redactor_and_the_secret_guard_agree_on_what_a_key_looks_like() -> None:
+    """One shape, checked in two places for two different reasons: the guard stops a key reaching
+    the repository, `tda.obs.redact` stops one reaching an artifact. Divergence here would mean a
+    key that one catches and the other misses."""
+    from tda.obs.redact import BY_NAME
+
+    assert BY_NAME["api_key"].regex.pattern == secret_guard.PATTERNS[0].regex.pattern

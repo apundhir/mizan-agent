@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+import resource
 import sys
 import time
 from pathlib import Path
@@ -33,7 +35,15 @@ from tda.agents.provider import ProviderError, ProviderMode, ReplayProvider, Stu
 from tda.contracts import Period, VerdictStatus
 from tda.graph import RunContext, new_run_id, verify_directory
 from tda.metrics import METRIC_LIBRARY_VERSION
-from tda.obs import build_ledger, cost_summary, latest_run, read_run, redact, write_run
+from tda.obs import (
+    build_ledger,
+    cost_summary,
+    latest_run,
+    read_run,
+    redact,
+    routing_records,
+    write_run,
+)
 from tda.obs.viewer import render_tree
 from tda.outputs import write_outputs
 from tda.policy import load_policy
@@ -43,7 +53,7 @@ if TYPE_CHECKING:
 
     from tda.agents.provider.base import LLMProvider
     from tda.contracts import Claim, Verdict
-    from tda.obs import NodeLog, RunLedger, TraceLog, WrittenRun
+    from tda.obs import NodeLog, RoutingLog, RunLedger, TraceLog, WrittenRun
     from tda.outputs import WrittenOutputs
     from tda.policy import Policy
 
@@ -55,6 +65,14 @@ ARTIFACTS = REPO_ROOT / "artifacts"
 OK = 0
 FINDINGS = 1
 COULD_NOT_RUN = 2
+
+# Not the exact shape `tda.graph.run.new_run_id()` produces (`run-<12 hex>`) - this repository's
+# own tests give a sandboxed run a readable id (`run-sandboxtest01`) rather than a real one, and
+# that is a legitimate id too, not a shape to reject. What actually matters before `--run-id` is
+# trusted as a path component (`args.artifacts / run_id`, and everything `_write` builds under it)
+# is the property a traversal attempt would need to break: no path separator, no `.` at all, so a
+# `..` segment cannot appear even by accident.
+_RUN_ID = re.compile(r"run-[A-Za-z0-9_-]+")
 
 
 def declaration_from_manifest(submission: Path) -> tuple[str, str] | None:
@@ -113,6 +131,34 @@ def main(argv: list[str] | None = None) -> int:
         choices=[m.value for m in (ProviderMode.REPLAY, ProviderMode.STUB, ProviderMode.ANTHROPIC)],
         help="Overrides policy.model.provider. Default: whatever policy says.",
     )
+    run.add_argument(
+        "--run-id",
+        default=None,
+        help=(
+            "Use this id rather than minting one. For a caller that already named the directory "
+            "the submission was staged into (tda.review.sandbox, running this command as a "
+            "resource-limited subprocess) - not meant to be typed by hand."
+        ),
+    )
+    run.add_argument(
+        "--max-memory-bytes",
+        type=int,
+        default=None,
+        help=(
+            "Set RLIMIT_AS to this many bytes before doing anything else (Linux only - see "
+            "tda.review.sandbox for why). For tda.review.sandbox, which computes the number; not "
+            "meant to be typed by hand."
+        ),
+    )
+    run.add_argument(
+        "--max-cpu-seconds",
+        type=int,
+        default=None,
+        help=(
+            "Set RLIMIT_CPU to this many seconds before doing anything else. For "
+            "tda.review.sandbox; not meant to be typed by hand."
+        ),
+    )
     trace = sub.add_parser("trace", help="Render a run's trace as a readable tree.")
     trace.add_argument(
         "run",
@@ -126,6 +172,18 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "trace":
         return _trace(args.run, args.artifacts)
+
+    # Applied to this process itself, first, before importing or reading anything the submission
+    # might influence: `tda.review.sandbox` used to set these via `subprocess.Popen`'s
+    # `preexec_fn`, which runs in a forked-but-not-yet-exec'd copy of a caller that may be
+    # multithreaded (the console's own worker thread) - a fork/exec window the `subprocess`
+    # module's own documentation warns can deadlock on a lock another thread held at the moment of
+    # fork. This process, once this line runs, has already exec'd - a single-threaded interpreter
+    # holding no lock any other thread could have contended for - so there is no such window here.
+    if args.max_memory_bytes is not None and sys.platform.startswith("linux"):
+        resource.setrlimit(resource.RLIMIT_AS, (args.max_memory_bytes, args.max_memory_bytes))
+    if args.max_cpu_seconds is not None:
+        resource.setrlimit(resource.RLIMIT_CPU, (args.max_cpu_seconds, args.max_cpu_seconds))
 
     policy = load_policy()
 
@@ -153,8 +211,21 @@ def main(argv: list[str] | None = None) -> int:
     # catch anything, so a run that dies would otherwise take the record of where it died with it.
     context = RunContext.build(policy, period, provider)
     # Minted here rather than inside `verify` so that a run which dies still writes its artifacts
-    # under the id the run actually had, and `mizan trace <id>` finds them.
-    run_id = new_run_id()
+    # under the id the run actually had, and `mizan trace <id>` finds them - unless a caller
+    # already named the directory the submission lives under and passed that id back in. Checked
+    # against `_RUN_ID` before it is trusted as a path component (`args.artifacts / run_id` and
+    # everything `_write` builds under it): the only caller today (`tda.review.sandbox`) always
+    # passes one it minted itself, but a shape this function does not enforce here is a traversal
+    # primitive resting on that caller's discipline alone, and a CLI flag is a boundary this
+    # codebase checks at, not trusts across.
+    if args.run_id is not None and not _RUN_ID.fullmatch(args.run_id):
+        print(
+            f"--run-id {args.run_id!r} is not a run id. Expected 'run-' followed by letters, "
+            "digits, '_' or '-', and nothing else: no path separator, no '.'.",
+            file=sys.stderr,
+        )
+        return COULD_NOT_RUN
+    run_id = args.run_id or new_run_id()
     started = time.perf_counter()
 
     try:
@@ -165,21 +236,34 @@ def main(argv: list[str] | None = None) -> int:
         report_failure(exc, context)
 
         # A failed run's artifacts are the ones somebody goes looking for. Writing them only on
-        # success would mean the trace exists exactly when nobody needs it.
-        if written := _write(
-            args.artifacts,
-            _failure_ledger(
-                run_id=run_id,
-                hotel=hotel,
-                period=period,
-                policy=policy,
-                context=context,
-                submission=args.submission,
-                duration_ms=_elapsed(started),
-            ),
-            context.trace,
-            context.nodes,
-        ):
+        # success would mean the trace exists exactly when nobody needs it. Wrapped in its own
+        # try/except: building the ledger digests every input file, real allocation this process
+        # may no longer have room for when the exception above was itself a MemoryError under a
+        # sandboxed run's own RLIMIT_AS - measured directly, not hypothesised, driving the exact
+        # hyperlink-range construction ADR-0010 §7 describes past its ceiling. Left unguarded, a
+        # second, unhandled MemoryError here would exit with Python's own default code for an
+        # uncaught exception (1), indistinguishable from `FINDINGS` to anything reading the exit
+        # code - an honest sentinel matters as much for an exit code as for a written field.
+        try:
+            written = _write(
+                args.artifacts,
+                failure_ledger(
+                    run_id=run_id,
+                    hotel=hotel,
+                    period=period,
+                    policy=policy,
+                    context=context,
+                    submission=args.submission,
+                    duration_ms=_elapsed(started),
+                ),
+                context.trace,
+                context.nodes,
+                routing_records(context.supervisor.decisions),
+            )
+        except Exception as write_exc:
+            print(f"could not write this run's own failure record: {write_exc}", file=sys.stderr)
+            return COULD_NOT_RUN
+        if written:
             print(written.render(), file=sys.stderr)
             print(f"  mizan trace {run_id}", file=sys.stderr)
         return COULD_NOT_RUN
@@ -209,7 +293,13 @@ def main(argv: list[str] | None = None) -> int:
     print()
     print(cost_summary(context.usage))
 
-    written = _write(args.artifacts, ledger, context.trace, result.nodes)
+    written = _write(
+        args.artifacts,
+        ledger,
+        context.trace,
+        result.nodes,
+        routing_records(context.supervisor.decisions),
+    )
     if written is not None:
         # `as_written` rather than `ledger`: the file on disk is redacted and the object in memory
         # is not, and printing the one we handed over would put on the terminal exactly what was
@@ -317,7 +407,13 @@ def _elapsed(started: float) -> int:
     return int((time.perf_counter() - started) * 1000)
 
 
-def _write(root: Path, ledger: RunLedger, trace: TraceLog, nodes: NodeLog) -> WrittenRun | None:
+def _write(
+    root: Path,
+    ledger: RunLedger,
+    trace: TraceLog,
+    nodes: NodeLog,
+    routing: RoutingLog | None = None,
+) -> WrittenRun | None:
     """Write the artifacts, or say why not — and never take the verdict down with them.
 
     An unwritable artifacts root is a problem with the machine, not with the verification. Letting
@@ -325,7 +421,7 @@ def _write(root: Path, ledger: RunLedger, trace: TraceLog, nodes: NodeLog) -> Wr
     the wrong trade in both directions: the operator loses the answer *and* the reason.
     """
     try:
-        return write_run(root, ledger, trace, nodes)
+        return write_run(root, ledger, trace, nodes, routing)
     except OSError as exc:
         print(
             f"the run completed but its artifacts could not be written to {root}: {exc}",
@@ -334,7 +430,7 @@ def _write(root: Path, ledger: RunLedger, trace: TraceLog, nodes: NodeLog) -> Wr
         return None
 
 
-def _failure_ledger(
+def failure_ledger(
     *,
     run_id: str,
     hotel: str,
@@ -345,6 +441,10 @@ def _failure_ledger(
     duration_ms: int,
 ) -> RunLedger:
     """The ledger for a run that never produced a verdict.
+
+    Public rather than private: the Run console builds the same kind of failure ledger from a
+    background thread, on the same rules, and calling this rather than re-deriving it is what keeps
+    the two writers from quietly disagreeing about what a failed run's ledger should say.
 
     `status` is `FAILED`, which is the one value `VerdictStatus` cannot express and should not: a
     `Verdict` is a statement about a submission, and a run that died made no statement. The ledger
@@ -366,17 +466,18 @@ def _failure_ledger(
         model_id=policy.model.model_id,
         provider_mode=context.provider_mode,
         prompt_versions={r.agent: r.prompt_version for r in context.trace.records},
-        inputs=_files_in(submission),
+        inputs=files_in(submission),
         nodes=context.nodes,
         usage=context.usage,
         duration_ms=duration_ms,
     )
 
 
-def _files_in(submission: Path) -> tuple[Path, ...]:
+def files_in(submission: Path) -> tuple[Path, ...]:
     """What was in the submission directory, for a run that failed before it agreed on a file set.
 
-    Best effort on purpose: a directory that cannot be listed is why some runs fail, and the ledger
+    Public alongside `failure_ledger`, which is its only real caller outside this module. Best
+    effort on purpose: a directory that cannot be listed is why some runs fail, and the ledger
     recording no inputs is better than the failure handler failing.
     """
     try:

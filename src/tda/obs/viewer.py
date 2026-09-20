@@ -175,7 +175,7 @@ def _call_lines(record: TraceRecord, stem: str, *, last_call: bool) -> list[str]
     if record.error is not None:
         lines.append(f"{gutter}failed: {_one_line(record.error)}")
     else:
-        lines.append(f"{gutter}returned: {_returned(record.output_json)}")
+        lines.append(f"{gutter}returned: {summarise_output(record.output_json)}")
     if refused := record.refused_tools:
         # A refusal is never a footnote. It means the agent reached outside its allowlist, which is
         # a roster or prompt defect rather than a runtime event.
@@ -210,11 +210,15 @@ def _tools(record: TraceRecord) -> str:
     return ", ".join(name + (f" x{counts[name]}" if counts[name] > 1 else "") for name in order)
 
 
-def _returned(output_json: str | None) -> str:
+def summarise_output(output_json: str | None) -> str:
     """A contract's shape in one line: short scalars shown, everything else counted.
 
     The elision is the point rather than the brevity — see the module docstring. A field this
     cannot summarise is named with its length, so a reader knows it exists and where to look.
+
+    Public because the Run console reuses it for a live agent card: the same rule that keeps a
+    model's free prose off a terminal (`mizan trace`) should keep it off a browser tab too, rather
+    than the console re-deciding independently what is safe to print.
     """
     if output_json is None:
         return "nothing"
@@ -308,4 +312,4 @@ def _cost(record: TraceRecord) -> Decimal:
     ).cost_usd
 
 
-__all__ = ["FIELD_LIMIT", "VALUE_LIMIT", "render_tree"]
+__all__ = ["FIELD_LIMIT", "VALUE_LIMIT", "render_tree", "summarise_output"]

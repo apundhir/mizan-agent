@@ -22,14 +22,26 @@ jobs:
   ci:
     name: lint · types · guards · policy · tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Raised from 15 after a run was cancelled mid-eval at 15m15s. The budget was set when this
+    # suite was smaller and had become a knife-edge: the last green run took 14m02s, so the next
+    # handful of tests was always going to tip it, and it did. Everything before the cut passed,
+    # which is the worst shape a timeout can take - a red check that looks like a broken build.
+    #
+    # This job is not only pytest: it regenerates the corpus and diffs it, rebuilds the fixtures
+    # from their spec, scores six fixtures through the real pipeline, then runs one submission
+    # twice to prove the verdict is byte-identical. Held at 25 rather than removed, because the
+    # number is also the backstop against a hang, and a hang should cost one coffee rather than
+    # half an hour of somebody else's runner.
+    timeout-minutes: 25
 
     # No ANTHROPIC_API_KEY, deliberately. The whole pipeline runs in replay mode against
     # committed cassettes, so CI is offline, free, and byte-reproducible. If a change makes CI
     # need a key, that change has broken the reproducibility claim and the missing key is the
-    # symptom rather than the problem.
+    # symptom rather than the problem. MIZAN_LIVE_MODE is already off by default with no key
+    # present - set explicitly so a reader sees the same guarantee the Docker Compose service and
+    # the hosted deployment's secrets both state for themselves.
     env:
-      MIZAN_LLM_PROVIDER: replay
+      MIZAN_LIVE_MODE: "false"
 
     steps:
       - uses: actions/checkout@v4

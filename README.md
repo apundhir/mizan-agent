@@ -145,7 +145,10 @@ of cells is which metric. The figures are read afterwards by plain code.
 Six agents sit behind a code-only supervisor. Each has a versioned prompt, a typed output contract,
 a narrow tool allowlist, an eval set and a trace record; an agent missing any of those does not
 type-check. The colour says where the agent runs today, which is a narrower claim than the roster's
-intended design and is stated deliberately.
+intended design and is stated deliberately. Narrative and Critic have one more caller besides
+`make eval`: the Run console's **Grade the prose** button, which narrates and grades every finding
+on a completed run, on demand, and shows both agents' cards the same way the pipeline's own agents
+are shown.
 
 ```mermaid
 flowchart TB
@@ -343,29 +346,41 @@ failure, never as a skip.
 ## Project layout
 
 ```
+streamlit_app.py        the hosted entrypoint: the Run console and the review screen, one page each
 Makefile              every entry point: setup · run · review · eval · repro · demo · ci
 policy.yaml            every contestable rule, schema-validated and versioned
+requirements.txt        pinned deps for Streamlit Community Cloud, which has no `pip install -e .` step
+.streamlit/             config.toml (tracked) and a secrets.example.toml (placeholders only)
 src/tda/
   contracts/           the typed records every layer agrees on: Finding, Verdict, Claim, PdfRef
   metrics/             pure functions, no I/O, no globals (guarded)
   extract/             the PDF parser: column mapping, normalisation, totals reconciliation
   excel/               the Excel reader and the mapping agent's redacted tool surface
   reconcile/           the join, the tolerance policy, the classification (guarded)
-  agents/              the six agents, each with a versioned prompt and an eval set
+  agents/              the six agents, each with a versioned prompt and an eval set; supervisor.py
   graph/               the five-node LangGraph pipeline
   outputs/             verdict.json, the annotated workbook, the Word memo
-  review/              the verification officer's screen (Streamlit, plus a console fallback)
+  review/              the review screen and the Run console (Streamlit); live.py gates model calls
   eval/                the fixture scorecard, narrative grading, the repro check
-  obs/                 the run ledger, the agent trace, cost accounting
+  obs/                 the run ledger, the agent trace, routing decisions, cost accounting
 tools/
   datagen/             the synthetic corpus generator (ledger-first, independently aggregated)
   fixtures/            declarative mutation specs; every expectation is derived, never hand-written
+  demo/                 the three-scene walkthrough; also builds the console's refusal scene
   guard/               the two CI guards described above
 tests/{unit,arch,eval}/
 corpus/demo/            the frozen synthetic corpus: never mutated, never scored
 corpus/fixtures/F1..F6/ six scored fixtures, one planted error each, gitignored and rebuilt on demand
 docs/                   architecture, definitions, the assumption register, the runbook, ADRs
 ```
+
+### Try it hosted
+
+The Run console runs on Streamlit Community Cloud with no install: pick one of five scenes and
+watch the agents work stage by stage, or upload your own workbook and PDFs and get the same
+verdict once a resource-limited verification subprocess finishes with it. Replay only, no key,
+synthetic data. See [docs/04-runbook.md](docs/04-runbook.md#deploying-to-streamlit-community-cloud)
+for how it is deployed and kept safe.
 
 ## Getting started
 
@@ -378,7 +393,8 @@ make ci        # the full gate: lint, types, guards, policy, corpus, fixtures, e
 make datagen   # regenerate the synthetic corpus (byte-reproducible)
 make run       # verify one submission end to end
 make trace RUN=<run_id>   # render one run's agent trace as a tree
-make review    # the verification officer's screen
+make review    # the Run console and the verification officer's screen
+make review-live RUN=<run_id>  # same, with live model calls (export ANTHROPIC_API_KEY first)
 make demo      # three scenes: a clean pass, a caught error, a refusal
 make eval      # score the six fixtures and grade every narrative
 make repro     # run one submission twice and prove the verdicts match
@@ -445,14 +461,14 @@ runnable in isolation:
 
 | | |
 |---|---|
-| [Build plan](docs/00-BUILD-PLAN.md) | Architecture, the agent roster, milestones, deviations from the original PRD |
+
 | [Definitions](docs/01-definitions.md) | What occupancy and guests-by-nationality *mean*, precisely enough that two engineers agree |
 | [Assumption register](docs/02-assumption-register.md) | Every assumption, the value chosen, why, and what moves if a regulator rules otherwise |
 | [Architecture](docs/03-architecture.md) | The agent graph, the deterministic boundary, the trace format, in full |
 | [Runbook](docs/04-runbook.md) | Every `make` target, and what to do when one fails |
 | [Onboarding asks](docs/05-onboarding-asks.md) | The decisions a real deployment would need to make, in priority order |
 | [Walkthrough](docs/06-walkthrough.md) | What the three demo scenes prove, and just as plainly, what they do not |
-| [Git workflow](docs/07-git-workflow.md) | Branches, PRs, commit conventions, Definition of Done |
+
 | [ADRs](docs/adr/) | Architectural decisions and the argument behind each one |
 
 ## What this does not prove

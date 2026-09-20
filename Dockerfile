@@ -54,9 +54,10 @@ RUN if ! getent group "${APP_GID}" >/dev/null; then groupadd --gid "${APP_GID}" 
  && install -d -o "${APP_UID}" -g "${APP_GID}" /home/mizan
 
 # Source last, and as files rather than as an installed package: Streamlit is handed the app by
-# path (`streamlit run src/tda/review/app.py`), so the tree has to be on disk under /app.
+# path (`streamlit run streamlit_app.py`), so the tree has to be on disk under /app.
 COPY --chown=${APP_UID}:${APP_GID} src/ src/
-COPY --chown=${APP_UID}:${APP_GID} policy.yaml policy.schema.json ./
+COPY --chown=${APP_UID}:${APP_GID} streamlit_app.py policy.yaml policy.schema.json ./
+COPY --chown=${APP_UID}:${APP_GID} .streamlit/config.toml .streamlit/config.toml
 # The reviewer-assist agent reads clause text out of `docs/01-definitions.md` at question time, so
 # the docs are a runtime dependency of the screen and not just reading material.
 COPY --chown=${APP_UID}:${APP_GID} docs/ docs/
@@ -66,16 +67,22 @@ COPY --chown=${APP_UID}:${APP_GID} corpus/ corpus/
 # Replay is the only provider this image can use, and replay without cassettes is a hard error at
 # the first model call. `tests/` is otherwise excluded from the build context.
 COPY --chown=${APP_UID}:${APP_GID} tests/cassettes/ tests/cassettes/
+# The Run console's two mutated scenes (a mistyped guest count, occupancy under a different
+# definition) build their fixtures on first use via `tools.fixtures.materialise_all`, which pulls
+# in `tools.datagen` for the ledger and workbook renderers it re-derives them from. Neither needs
+# reportlab: PDFs are read from `corpus/demo/`, never re-rendered, so `tools/demo/` - the one
+# piece that does import it, for the refusal scene - stays out of this image on purpose. Without
+# it, `streamlit_app.py`'s `_refusal_builder()` fails its import and that one scene is omitted
+# rather than offered and then failing when run.
+COPY --chown=${APP_UID}:${APP_GID} tools/fixtures/ tools/fixtures/
+COPY --chown=${APP_UID}:${APP_GID} tools/datagen/ tools/datagen/
 
 # Pre-created and owned, so a plain `docker run` with no mount can still complete a verification.
 RUN install -d -o "${APP_UID}" -g "${APP_GID}" /app/artifacts
 
 ENV HOME=/home/mizan \
     STREAMLIT_SERVER_PORT=8501 \
-    STREAMLIT_SERVER_ADDRESS=0.0.0.0 \
-    STREAMLIT_SERVER_HEADLESS=true \
-    STREAMLIT_SERVER_FILE_WATCHER_TYPE=none \
-    STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+    STREAMLIT_SERVER_ADDRESS=0.0.0.0
 
 USER ${APP_UID}:${APP_GID}
 EXPOSE 8501
@@ -86,7 +93,7 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=5 \
 
 # No ENTRYPOINT: the officer's workflow is two commands against one image, so
 # `docker run mizan mizan run` and `docker run mizan mizan trace` have to override this cleanly.
-CMD ["python", "-m", "streamlit", "run", "/app/src/tda/review/app.py"]
+CMD ["python", "-m", "streamlit", "run", "/app/streamlit_app.py"]
 
 # `docker build --target toolchain` for the reproducibility check: the generator rebuilds
 # `corpus/demo` into a temporary directory and diffs digests against the committed copy, which is

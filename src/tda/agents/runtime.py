@@ -38,6 +38,16 @@ agent can return. The mapping agent hands on a cell range, not the value in it; 
 agent hands on a country code, not a guest count. This is what makes the deterministic-core claim
 survive contact with a six-agent system, and it is enforced by `tools/guard/agent_schema_lint.py`
 rather than by reviewer vigilance.
+
+## Every call is routed, when a supervisor is bound
+
+`AgentRunner` accepts an optional `supervisor` and the `node` it is running at. When both are given,
+`run()` asks `supervisor.route(node, agent, needed=True, ...)` before the request goes to the
+provider. A refusal, whether from an exhausted budget or an agent the roster does not know, is
+recorded and raised exactly as a provider failure would be, so a refused call leaves the same kind
+of trace entry a failed one does rather than a silent gap. `tda.graph.context.RunContext` is the one
+place that builds a runner with a supervisor attached; every other caller (reviewer-assist,
+narrative grading, the mapping agent's own tests) passes neither, and routes nothing.
 """
 
 from __future__ import annotations
@@ -51,6 +61,7 @@ from tda.agents.contracts.base import AgentOutput
 from tda.agents.prompts.registry import PromptRegistry
 from tda.agents.provider.base import Effort, Message, ModelRequest
 from tda.agents.roster import entry_for
+from tda.agents.supervisor import BudgetExceededError, Supervisor
 from tda.agents.tools import ToolRegistry, ToolSession
 from tda.obs.trace import TraceCall, TraceLog, TraceRecord, trace_calls
 
@@ -189,6 +200,8 @@ class AgentRunner:
         trace: TraceLog | None = None,
         usage: UsageLedger | None = None,
         prompts: PromptRegistry | None = None,
+        supervisor: Supervisor | None = None,
+        node: str = "",
     ) -> None:
         self.provider = provider
         self.policy = policy
@@ -196,6 +209,8 @@ class AgentRunner:
         self.trace = trace if trace is not None else TraceLog()
         self.usage = usage
         self.prompts = prompts or PromptRegistry()
+        self.supervisor = supervisor
+        self.node = node
 
     def session[ContractT: AgentOutput](self, spec: AgentSpec[ContractT]) -> ToolSession:
         """A tool session bound to this agent's allowlist.
@@ -273,6 +288,35 @@ class AgentRunner:
             # that happened.
             self._record_failure(spec, calls, cassette_key="", error=exc, started=started)
             raise
+
+        if self.supervisor is not None:
+            try:
+                decision = self.supervisor.route(
+                    self.node,
+                    spec.name,
+                    needed=True,
+                    reason=f"{spec.output_type.__name__} requested at {self.node or 'run'}",
+                )
+            except BudgetExceededError as exc:
+                # The budget is spent, not the request malformed. Recorded the same way a provider
+                # failure is, with the cassette key the request already carries, so a refused call
+                # leaves the same kind of trace entry a failed one would rather than a silent gap.
+                self._record_failure(
+                    spec, calls, cassette_key=request.cassette_key, error=exc, started=started
+                )
+                raise
+            if not decision.granted:
+                # Only an unknown agent reaches here without raising: `route()` never refuses a
+                # known agent's budgeted call without raising `BudgetExceededError` above. An agent
+                # the roster does not know is a wiring defect, and the caller should see it in full
+                # rather than as a KeyError three frames further down inside `AgentSpec.from_policy`.
+                error = AgentError(
+                    f"agent {spec.name!r} was refused by the supervisor: {decision.reason}"
+                )
+                self._record_failure(
+                    spec, calls, cassette_key=request.cassette_key, error=error, started=started
+                )
+                raise error
 
         try:
             response = self.provider.complete(request, spec.output_type)
