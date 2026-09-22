@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-13
-- **Issues:** PRD-83
+- **Issues:** the synthetic corpus
 
 ## Context
 

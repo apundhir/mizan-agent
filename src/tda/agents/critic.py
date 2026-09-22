@@ -21,7 +21,7 @@ So a prompt change is measured against a fixed rule rather than against a judge 
 moved at the same time. That is the property that makes a judge loop scorable at all, and it is why
 the contract has no `score` field for the model to fill in.
 
-Turning a set of verdicts into a grade for a prompt version is PRD-95's job, in the eval harness
+Turning a set of verdicts into a grade for a prompt version is narrative grading's job, in the eval harness
 where the thresholds sit next to the results.
 """
 

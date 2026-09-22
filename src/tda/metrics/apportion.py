@@ -16,7 +16,7 @@ error, and the difference matters enormously to the hotel being told about it.
 
 **All three bases are implemented here, side by side.** `OCCUPIED_NIGHT` is the baseline;
 `ARRIVAL_MONTH` and `DEPARTURE_MONTH` exist because they are what a hotel actually does when it gets
-this wrong, and the permutation engine (PRD-87) needs to be able to *reproduce* the wrong answer in
+this wrong, and the permutation engine needs to be able to *reproduce* the wrong answer in
 order to name the cause. Keeping them in one function, dispatched on policy, means a reader can see
 all three readings of the clause at once — which is the only way to tell they are three readings of
 one clause rather than three unrelated code paths.

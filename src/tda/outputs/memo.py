@@ -16,8 +16,8 @@ counts are the first thing on the page, before any explanation of what was check
 
 ## The signature block cannot claim a review that did not happen
 
-PRD-92 asks for a block "naming the reviewer". At the moment a run finishes there is no reviewer —
-the review gate is PRD-91, and `Verdict.review_records` is empty until a human decides something. A
+the outputs asks for a block "naming the reviewer". At the moment a run finishes there is no reviewer —
+the review gate is the review screen, and `Verdict.review_records` is empty until a human decides something. A
 memo that printed a name anyway would be a forged sign-off on the one page a supervisor actually
 reads.
 

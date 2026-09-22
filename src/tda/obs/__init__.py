@@ -14,20 +14,9 @@ from tda.obs.nodes import NodeLog, NodeOutcome, NodeRecord, Phase
 from tda.obs.redact import Redaction, redact, scan
 from tda.obs.routing import ROUTING_LOG, RoutingLog, RoutingRecord, routing_records
 from tda.obs.trace import TraceCall, TraceLog, TraceRecord, trace_calls
-from tda.obs.usage import (
-    CACHE_READ_PER_MTOK,
-    INPUT_PER_MTOK,
-    OUTPUT_PER_MTOK,
-    PRICING_VERSION,
-    AgentUsage,
-    UsageLedger,
-)
+from tda.obs.usage import AgentUsage, RateCard, UsageLedger, spend_line
 
 __all__ = [
-    "CACHE_READ_PER_MTOK",
-    "INPUT_PER_MTOK",
-    "OUTPUT_PER_MTOK",
-    "PRICING_VERSION",
     "ROUTING_LOG",
     "AgentUsage",
     "InputFile",
@@ -36,6 +25,7 @@ __all__ = [
     "NodeRecord",
     "NodeTiming",
     "Phase",
+    "RateCard",
     "Redaction",
     "RoutingLog",
     "RoutingRecord",
@@ -54,6 +44,7 @@ __all__ = [
     "redact",
     "routing_records",
     "scan",
+    "spend_line",
     "trace_calls",
     "write_run",
 ]

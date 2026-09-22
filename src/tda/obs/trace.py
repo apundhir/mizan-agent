@@ -27,7 +27,7 @@ strict enough to be worth having.
 
 `output` is stored as JSON text rather than as the parsed object. The trace is a record, and a
 record that holds a live reference to a model instance changes when that instance does. JSON also
-means the file is readable by anything, which matters for the trace viewer in PRD-90.
+means the file is readable by anything, which matters for the trace viewer in observability.
 
 ## Refused tool calls are kept
 
@@ -206,7 +206,7 @@ class TraceLog:
 
         JSON Lines rather than a JSON array so a trace can be written as the run proceeds and is
         still readable if the run dies halfway - which is exactly when someone wants to read it.
-        PRD-90 puts this at `artifacts/<run_id>/trace.jsonl`.
+        observability puts this at `artifacts/<run_id>/trace.jsonl`.
         """
         return "".join(record.model_dump_json() + "\n" for record in self._records)
 

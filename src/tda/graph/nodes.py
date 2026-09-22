@@ -16,7 +16,7 @@ starts making decisions it has taken work from a package that should own it.
 
 ## A submission that halts simply halts
 
-No retries, no `Send` fan-out across PDFs, no checkpointed resume. PRD-89 defers all three and says
+No retries, no `Send` fan-out across PDFs, no checkpointed resume. the orchestrated graph defers all three and says
 why: **a retry ladder that hides a transient extraction failure is worse than a halt**, because the
 officer cannot tell which runs were clean. For a POC, honest beats resilient. Recording the
 deferral is what stops it being mistaken for an oversight — it is in the issue, in ADR-0005, and
@@ -339,7 +339,7 @@ def recompute_reconcile_node(state: RunState, context: RunContext) -> dict[str, 
 
 
 def publish_node(state: RunState, context: RunContext) -> dict[str, Any]:
-    """Decide the verdict status. The artefacts themselves are PRD-92's.
+    """Decide the verdict status. The artefacts themselves are the outputs's.
 
     The status rules are `Verdict`'s own invariants read forwards rather than backwards, and the
     contract enforces every one of them on construction — so this function cannot produce a status

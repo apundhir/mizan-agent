@@ -44,7 +44,7 @@ from tda.agents.provider.anthropic_client import AnthropicProvider, RecordingPro
 from tda.agents.provider.dotenv import DEFAULT_ENV_PATH, load_dotenv
 from tda.agents.provider.replay import DEFAULT_CASSETTE_DIR
 from tda.agents.runtime import AgentRunner
-from tda.obs import PRICING_VERSION, TraceLog, UsageLedger
+from tda.obs import RateCard, TraceLog, UsageLedger, spend_line
 from tda.policy import load_policy
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -143,8 +143,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         f"\n{len(written)} cassette(s) written, {len(failures)} case(s) failed.\n"
-        f"  cost: ${usage.total_cost_usd():.4f} over {usage.total_calls()} call(s), "
-        f"at the rates in tda.obs.usage (version {PRICING_VERSION})",
+        f"  {usage.total_calls()} call(s). {spend_line(usage, RateCard.from_env())}",
         file=sys.stderr,
     )
     print(

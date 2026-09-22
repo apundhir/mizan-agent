@@ -101,7 +101,7 @@ def extract(reports: Sequence[Path], period: Period, policy: Policy) -> Extracti
     The month comes from the **file name**, not from the report's heading. That is the stricter choice
     and the deliberate one: a March report filed as `pms_2026-02.pdf` would otherwise be reconciled
     against its own March totals, agree with itself perfectly, and contribute March's room-nights to
-    February. Taking the month from the name makes the two statements comparable, and PRD-89's intake
+    February. Taking the month from the name makes the two statements comparable, and the orchestrated graph's intake
     is where the mismatch between them becomes a rejection.
     """
     lookups = load_lookups()

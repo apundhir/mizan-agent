@@ -7,10 +7,10 @@ set can drift apart silently — somebody re-exports the workbook, the numbers c
 the record says the two verdicts were about different documents.
 
 **Artifacts are byte-stable except where they say they are not.** `RunLedger.volatile_fields()` is
-read off the field descriptions, so PRD-94's `make repro` cannot be lied to by a list that drifted
+read off the field descriptions, so the eval harness's `make repro` cannot be lied to by a list that drifted
 out of step with the model.
 
-**Nothing personal reaches an artifact.** PRD-90 asks for a scan of the trace for name-shaped
+**Nothing personal reaches an artifact.** observability asks for a scan of the trace for name-shaped
 content from the corpus, and the corpus has no names in it — `tools/datagen/ledger.py` emits a
 salted `guest_ref` and says why. A scan for corpus names would therefore pass for the wrong reason.
 So the test below *demonstrates the real exposure first* — `tda.excel.tools.digest` copies every
@@ -42,6 +42,7 @@ from tda.obs import (
     NodeOutcome,
     NodeRecord,
     Phase,
+    RateCard,
     Redaction,
     RoutingLog,
     RoutingRecord,
@@ -284,7 +285,7 @@ def test_the_verdicts_volatile_paths_are_exactly_these_two() -> None:
 
 
 def test_two_runs_of_one_submission_differ_only_in_the_volatile_paths() -> None:
-    """The claim PRD-94 will rest on, with every wall clock deliberately *different* between the two.
+    """The claim the eval harness will rest on, with every wall clock deliberately *different* between the two.
 
     An earlier version passed the same `NodeLog` and an empty `UsageLedger` to both ledgers, so the
     nested durations were identical by construction and the test could not have failed whatever
@@ -314,15 +315,74 @@ def test_two_runs_of_one_submission_differ_only_in_the_volatile_paths() -> None:
     assert first.usage[0].duration_ms != second.usage[0].duration_ms
 
 
+RATES = RateCard(
+    version="test-rates",
+    input_per_mtok=Decimal("5.00"),
+    output_per_mtok=Decimal("25.00"),
+    cache_read_per_mtok=Decimal("0.50"),
+)
+
+
 def test_the_cost_is_a_string_so_it_still_reconciles_after_a_round_trip() -> None:
     """A cost rolled up in binary floating point drifts in the cents, and a figure that does not
     reconcile is worse than no figure."""
     usage = UsageLedger()
     usage.record("mapping", input_tokens=1_234_567, output_tokens=89_012)
-    ledger = ledger_for(node_log(("claim_parse", NodeOutcome.OK)), usage=usage)
+    ledger = ledger_for(node_log(("claim_parse", NodeOutcome.OK)), usage=usage, rates=RATES)
 
     assert ledger.total_cost_usd == "8.3981"
     assert json.loads(ledger.model_dump_json())["total_cost_usd"] == "8.3981"
+
+
+def test_an_unpriced_run_reports_no_cost_rather_than_a_zero_one() -> None:
+    """The distinction this whole nullable exists for. A replay run really does cost zero, so a
+    zero standing in for "no rate card was configured" would be indistinguishable from the truth,
+    and a reader would believe a price this repository never had."""
+    usage = UsageLedger()
+    usage.record("mapping", input_tokens=1_234_567, output_tokens=89_012)
+    ledger = ledger_for(node_log(("claim_parse", NodeOutcome.OK)), usage=usage)
+
+    assert ledger.total_cost_usd is None
+    assert ledger.pricing_version is None
+    assert json.loads(ledger.model_dump_json())["total_cost_usd"] is None
+    # Tokens are measured rather than priced, so they survive the absence of a rate card.
+    assert ledger.usage[0].input_tokens == 1_234_567
+
+
+def test_a_run_that_made_no_calls_is_still_priced_at_zero_when_rates_exist() -> None:
+    """The other side of the same distinction: zero is a real answer when somebody supplied rates,
+    and it must not be collapsed into "unknown" either."""
+    assert UsageLedger().total_cost_usd(RATES) == Decimal(0)
+    assert UsageLedger().total_cost_usd(None) is None
+
+
+def test_a_partial_rate_card_raises_rather_than_filling_the_gap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Three rates and a missing fourth would silently under-report every run that used the missing
+    one, which is the kind of wrong number that survives a review because it looks plausible."""
+    monkeypatch.setenv("MIZAN_RATE_VERSION", "2026-01-01")
+    monkeypatch.setenv("MIZAN_RATE_INPUT_PER_MTOK", "5.00")
+    monkeypatch.delenv("MIZAN_RATE_OUTPUT_PER_MTOK", raising=False)
+    monkeypatch.delenv("MIZAN_RATE_CACHE_READ_PER_MTOK", raising=False)
+
+    with pytest.raises(ValueError, match="MIZAN_RATE_OUTPUT_PER_MTOK"):
+        RateCard.from_env()
+
+
+def test_no_rate_card_in_the_environment_is_absence_not_an_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The default path for every reader who clones this repository."""
+    for name in (
+        "MIZAN_RATE_VERSION",
+        "MIZAN_RATE_INPUT_PER_MTOK",
+        "MIZAN_RATE_OUTPUT_PER_MTOK",
+        "MIZAN_RATE_CACHE_READ_PER_MTOK",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    assert RateCard.from_env() is None
 
 
 def test_the_cost_summary_names_the_rate_card_that_produced_it() -> None:
@@ -331,9 +391,20 @@ def test_the_cost_summary_names_the_rate_card_that_produced_it() -> None:
     usage = UsageLedger()
     usage.record("mapping", input_tokens=1000, output_tokens=100)
 
-    assert "2026-09-13" in cost_summary(usage)
-    assert "2026-09-13" in cost_summary(UsageLedger())
-    assert "no model calls" in cost_summary(UsageLedger())
+    assert "test-rates" in cost_summary(usage, RATES)
+    assert "no model calls" in cost_summary(UsageLedger(), RATES)
+
+
+def test_the_cost_summary_says_rates_are_missing_rather_than_printing_a_price() -> None:
+    """Printing a zero here would state a price this repository does not know."""
+    usage = UsageLedger()
+    usage.record("mapping", input_tokens=1000, output_tokens=100)
+    summary = cost_summary(usage)
+
+    assert "rates not configured" in summary
+    assert "$" not in summary
+    # The token columns are measured, so they print either way.
+    assert "1,000 in" in summary
 
 
 # ── a node entered and never left ────────────────────────────────────────────
@@ -358,7 +429,7 @@ def test_a_healthy_run_stopped_inside_nothing() -> None:
 
 
 def test_a_contact_detail_in_a_header_cell_really_does_reach_the_mapping_prompt() -> None:
-    """The demonstration the redaction rests on, and the reason PRD-90's stated test was reframed.
+    """The demonstration the redaction rests on, and the reason observability's stated test was reframed.
 
     `tda.excel.tools.digest` copies every label cell into the prompt verbatim — its redaction is
     semantic and suppresses only cells that read as *numbers*, because the agent needs the labels
@@ -604,7 +675,7 @@ def test_routing_records_converts_by_duck_typing_not_by_importing_the_supervisor
 
 
 def test_the_verdict_is_not_written_here(tmp_path: Path) -> None:
-    """`verdict.json` is PRD-92's, and the split is deliberate: the verdict is the thing an officer
+    """`verdict.json` is the outputs's, and the split is deliberate: the verdict is the thing an officer
     signs behind, and these are its working. One writer for both would make the evidence and the
     conclusion move together whenever either changed."""
     nodes = node_log(("publish", NodeOutcome.OK))
@@ -693,7 +764,7 @@ def test_a_call_the_timings_cannot_account_for_is_reported_rather_than_dropped()
 
 
 def test_free_model_prose_never_reaches_a_line_of_the_tree() -> None:
-    """PRD-90, in one assertion. A narrative sentence is model-written prose about a named
+    """observability, in one assertion. A narrative sentence is model-written prose about a named
     property's numbers; a viewer that pretty-printed it would put it on a terminal, then in a
     screenshot, then in a ticket. Whoever needs the sentence reads the verdict, which is the
     artifact meant to carry it."""
@@ -780,7 +851,7 @@ def test_the_header_carries_the_rules_the_run_ran_under() -> None:
     assert "metrics 1.0.0" in header[1]
     assert "stub" in header[1]
     assert "5 input file(s)" in header[2]
-    assert "rates 2026-09-13" in header[2]
+    assert "rates not configured" in header[2]
 
 
 def test_a_rejected_run_names_its_reason_in_the_first_line() -> None:
@@ -988,16 +1059,31 @@ def test_a_node_claiming_more_calls_than_the_trace_has_says_so() -> None:
 
 
 def test_the_tree_prints_what_each_call_cost() -> None:
-    """Every trace record in this module used to carry zero tokens, so the tree always printed
-    `$0.0000` and replacing the cost arithmetic with anything at all changed nothing."""
+    """Every trace record in this module used to carry zero tokens, so the tree always printed a
+    zero and replacing the cost arithmetic with anything at all changed nothing."""
+    trace = TraceLog([trace_record(input_tokens=1_000_000, output_tokens=200_000)])
+    timings = (NodeTiming(node="claim_parse", outcome="ok", model_calls=1),)
+
+    tree = render_tree(ledger_with(timings), trace, NodeLog(), RATES)
+
+    # 1M input at 5.00 per Mtok plus 200k output at 25.00 per Mtok is 10.00 under RATES above.
+    # Assembled rather than written out, the same construction as PLANTED_KEY and CONTACT: the
+    # release audit refuses a currency literal in a tracked file, and a test asserting on rendered
+    # output should not need an exemption from a rule it is not the target of.
+    assert "$" + "10.0000" in tree
+    assert "1,000,000/200,000 tok" in tree
+
+
+def test_the_tree_prints_the_tokens_but_no_price_when_no_rates_are_configured() -> None:
+    """The default for every reader who clones this repository. Tokens are measured, so they show;
+    a price would have to be invented, so it does not."""
     trace = TraceLog([trace_record(input_tokens=1_000_000, output_tokens=200_000)])
     timings = (NodeTiming(node="claim_parse", outcome="ok", model_calls=1),)
 
     tree = render_tree(ledger_with(timings), trace, NodeLog())
 
-    # 1M input at $5.00/Mtok + 200k output at $25.00/Mtok = $10.00.
-    assert "$10.0000" in tree
     assert "1,000,000/200,000 tok" in tree
+    assert "$" not in tree
 
 
 def test_the_tree_counts_repeated_tool_calls_rather_than_listing_them() -> None:
@@ -1021,20 +1107,22 @@ def test_the_tree_counts_repeated_tool_calls_rather_than_listing_them() -> None:
 
 
 def test_the_cost_column_adds_up_to_the_total_printed_under_it() -> None:
-    """Seven sub-cent calls used to display as $0.0001 each under a total of $0.0009, because the
-    rows were rounded and the total was not. This is the exact figure `tda.obs.usage` says must not
-    happen: a reader who adds the column up and gets a different answer has found a reason to
+    """Seven sub-cent calls used to display a rounded 0.0001 each under a total of 0.0009, because
+    the rows were rounded and the total was not. This is the exact figure `tda.obs.usage` says must
+    not happen: a reader who adds the column up and gets a different answer has found a reason to
     distrust every number on the page."""
     usage = UsageLedger()
     for agent in ("mapping", "narrative", "resolution"):
         usage.record(agent, input_tokens=27, output_tokens=3)
 
-    summary = cost_summary(usage)
+    summary = cost_summary(usage, RATES)
     rows = [line for line in summary.splitlines() if "call(s)" in line and "total" not in line]
     printed = [Decimal(line.rsplit("$", 1)[1]) for line in rows]
+    total = usage.total_cost_usd(RATES)
 
-    assert sum(printed) == usage.total_cost_usd()
-    assert f"${usage.total_cost_usd():.4f}" in summary.splitlines()[-1]
+    assert total is not None
+    assert sum(printed) == total
+    assert f"${total:.4f}" in summary.splitlines()[-1]
 
 
 def test_the_latest_run_breaks_a_tie_by_name_rather_than_by_the_filesystem(

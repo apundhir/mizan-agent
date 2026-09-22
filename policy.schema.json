@@ -422,7 +422,7 @@
         "budget": {
           "type": "object",
           "additionalProperties": false,
-          "description": "The supervisor's per-run cap on model calls (PRD-88). Exhaustion raises rather than truncating: a verdict built from a pipeline that quietly stopped calling agents looks exactly like a complete one.",
+          "description": "The supervisor's per-run cap on model calls. Exhaustion raises rather than truncating: a verdict built from a pipeline that quietly stopped calling agents looks exactly like a complete one.",
           "required": ["max_calls_per_run", "max_calls_per_agent"],
           "properties": {
             "max_calls_per_run": { "type": "integer", "minimum": 1 },

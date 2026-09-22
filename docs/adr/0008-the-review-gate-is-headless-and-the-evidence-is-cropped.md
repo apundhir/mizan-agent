@@ -3,11 +3,11 @@
 - **Status:** Accepted
 - **Date:** 2026-09-14
 - **Related:** [ADR-0001](0001-deterministic-core-agentic-edges.md) · [ADR-0007](0007-outputs-render-from-the-written-verdict.md)
-- **Issues:** PRD-91
+- **Issues:** the review screen
 
 ## Context
 
-PRD-91's acceptance criterion is a stopwatch: *"if judging one finding requires opening the PDF in
+the review screen's acceptance criterion is a stopwatch: *"if judging one finding requires opening the PDF in
 another window, the screen has failed, regardless of how correct the finding is."* A verification
 officer who cannot check the agent in ten seconds will not sign behind it, and then the correctness
 of the finding is beside the point.
@@ -15,7 +15,7 @@ of the finding is beside the point.
 That turns four ordinary-looking implementation choices into decisions worth recording.
 
 **Where the gate lives.** The obvious build is a Streamlit app that reads the verdict, draws the
-findings and writes decisions back — all in one file. PRD-91 also names a console flow as its
+findings and writes decisions back — all in one file. the review screen also names a console flow as its
 fallback, and requires it to *"record the identical decision structure so the verdict schema does
 not change with the fallback"*.
 
@@ -132,7 +132,7 @@ Each of the above was verified by removing the behaviour and watching the test f
 
 ### Accepted costs
 
-- **The console fallback is not built.** PRD-91 names it as fallback #2, to be taken *if the sprint
+- **The console fallback is not built.** the review screen names it as fallback #2, to be taken *if the sprint
   tightens*. It did not, so the screen shipped instead — and the recorder it would use is complete
   and tested, so the fallback is a thin front end rather than a rewrite.
 - **The screen itself is barely tested.** One import check. Asserting on Streamlit widgets tests
@@ -171,7 +171,7 @@ system: the trail is in `verdict.json`, and what protects it is a file digest, n
 
 | Alternative | Why it lost |
 |---|---|
-| Decisions recorded in the Streamlit app directly | The console fallback would then re-implement the schema, which is exactly what PRD-91 forbids. |
+| Decisions recorded in the Streamlit app directly | The console fallback would then re-implement the schema, which is exactly what the review screen forbids. |
 | Render the whole PDF page | Unreadable at column width; the officer opens the PDF and the ten-second test is failed by a screen that looks complete. |
 | Link to the PDF at the right page | "Without leaving the screen" is the criterion, and a link leaves the screen. |
 | A second implementation of row geometry | Drifts silently, and its failure mode is a confident reviewer looking at the wrong row. |

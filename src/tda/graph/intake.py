@@ -92,7 +92,7 @@ def check_reports_open(submission: Submission) -> Rejection | None:
 
     So a whole-document failure is a *rejection*, and extraction deals only with files already
     known to open. Row-level defects inside a readable document remain findings, which is what
-    PRD-89's table means by "halt with a blocking finding": those can cite the page they failed on.
+    the orchestrated graph's table means by "halt with a blocking finding": those can cite the page they failed on.
 
     The open is a page count and nothing more. It costs a fraction of a parse and it is the only
     way to answer the question honestly.

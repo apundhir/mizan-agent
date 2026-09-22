@@ -1,5 +1,5 @@
 {
-  "why": "F4 (PRD-94) deletes one country's row from the Nationality sheet entirely, which shrinks the sheet's used_range by one row and moves the Total row up. Nothing about which metrics the workbook carries changes, so the mapping outcome must be identical to the clean demo case: only the digest moves, because the mapper is shown fewer rows, not a different sheet. Recorded separately because the cassette key hashes the workbook's structure, and a shorter Nationality block is a different structure even though it maps the same way.",
+  "why": "F4 deletes one country's row from the Nationality sheet entirely, which shrinks the sheet's used_range by one row and moves the Total row up. Nothing about which metrics the workbook carries changes, so the mapping outcome must be identical to the clean demo case: only the digest moves, because the mapper is shown fewer rows, not a different sheet. Recorded separately because the cassette key hashes the workbook's structure, and a shorter Nationality block is a different structure even though it maps the same way.",
   "input": {
     "workbook": "corpus/fixtures/F4/submission/claims_2026-Q1.xlsx"
   },

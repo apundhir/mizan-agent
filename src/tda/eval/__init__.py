@@ -1,6 +1,6 @@
 """Pipeline-level evaluation: score a run against a derived expectation, and prove two runs agree.
 
-The **consumer** half of PRD-94. `tools/fixtures/` builds the fixtures and derives what each one
+The **consumer** half of the eval harness. `tools/fixtures/` builds the fixtures and derives what each one
 should produce; this package runs them and scores what actually came out. The seam is
 `expected.json` on disk, specified by `tools/fixtures/expected.schema.json`, and it is a file rather
 than a function call because neither package may import the other: an expectation computed by the

@@ -1,10 +1,8 @@
-# ADR-0002 · The model layer: Anthropic Console API, and cassettes instead of `temperature`
+# ADR-0002 · The model layer: cassettes instead of `temperature`
 
 - **Status:** Accepted
 - **Date:** 2026-09-13
-- **Supersedes:** the Bedrock / `me-central-1` choice in PRD §5.2, for this build only
 - **Related:** [ADR-0001](0001-deterministic-core-agentic-edges.md) · [ADR-0004 agent runtime](0004-agent-runtime.md)
-- **Issues:** PRD-82
 
 ## Context
 
@@ -12,37 +10,35 @@ This POC asks to be trusted on one property: **run it again and get the same ans
 exists to demonstrate exactly that. And the system contains a language model, which is not
 deterministic.
 
-The PRD's answer was `temperature 0`, on Amazon Bedrock in `me-central-1`. Two things are wrong
-with carrying that forward.
+The obvious mechanism is `temperature 0`. Two things are wrong with it.
 
-**`temperature` no longer exists.** It is **rejected with HTTP 400** on current Claude models,
-along with `top_p` and `top_k`. Code written against the PRD would not run.
+**`temperature` no longer exists.** It is **rejected with HTTP 400** on current models, along with
+`top_p` and `top_k`. Code written against it would not run.
 
 **It never did what it was credited with.** `temperature 0` makes sampling greedy; it does not
 make inference bit-reproducible. Batching, hardware and server-side changes all move the output.
-It was always a *reduction* in variance being treated as an elimination of it — and a fee
+It was always a *reduction* in variance being treated as an elimination of it, and a fee
 calculation cannot rest on that distinction being ignored.
 
-So the reproducibility mechanism has to be rebuilt, not ported. Separately, this is a personal
-reference build rather than a production deployment, so the region-pinned Bedrock requirement does
-not apply here and should not be pretended into the code.
+So the reproducibility mechanism has to be built rather than configured.
 
 ## Decision
 
-**Anthropic Console API, `claude-opus-5`, behind a four-adapter provider interface.
-Reproducibility comes from committed cassettes, not from sampling parameters.**
+**A four-adapter provider interface. Reproducibility comes from committed cassettes, not from
+sampling parameters.**
 
 ### 1 · One interface, four adapters
 
-| Mode | Used by | Network | Cost |
-|---|---|---|---|
-| **`replay`** | `make ci`, `make eval`, `make repro`, CI | no | none |
-| `stub` | unit tests | no | none |
-| `anthropic` | a live run | yes | yes |
-| `record` | `make record` | yes | yes |
+| Mode | Used by | Network |
+|---|---|---|
+| **`replay`** | `make ci`, `make eval`, `make repro`, CI | no |
+| `stub` | unit tests | no |
+| `anthropic` | a live run | yes |
+| `record` | `make record` | yes |
 
-`replay` is the default. Swapping adapters is a config change, which is what keeps the
-pinned-region deployment question — Bedrock, Vertex, a different account — out of the code.
+`replay` is the default. Which provider runs behind the interface is a config change, and keeping
+it one is what stops a deployment question leaking into the code. The model id lives in
+`policy.yaml`, which is the single place it is pinned.
 
 ### 2 · Structured output on every call
 
@@ -108,14 +104,14 @@ subprocess rather than comparing two objects.
 ### Accepted costs
 
 - **Cassettes are an artefact to maintain.** They go stale when a prompt or a schema changes, and
-  `make record` costs money and needs a key. That is the price of offline reproducibility, and it
-  is cheaper than the alternative.
+  `make record` needs a key and bills whoever owns it. That is the price of offline
+  reproducibility, and it is cheaper than the alternative.
 - **Cassette diffs must be reviewed like code.** A changed cassette means a prompt or a schema
   moved; the PR has to say which and why the new response is better. A reviewer who rubber-stamps
   cassette diffs has disabled this whole layer without noticing.
-- **The live path is thinly tested here.** There is no API key in this environment, so
-  `PRD-82` tests the *request built* rather than the round trip. The network path is exercised
-  first by `make record` in `PRD-88`.
+- **The live path is thinly tested here.** There is no API key in this environment, so this
+  layer tests the *request built* rather than the round trip. The network path is exercised
+  first by `make record`.
 - **Recording is not reproducible.** A `record` run is a live run; two of them can disagree. That
   is inherent, and it is why `ProviderMode.RECORD` appears in the run ledger — a verdict produced
   during a recording session is a different kind of evidence from one produced in replay.
@@ -134,8 +130,8 @@ subprocess rather than comparing two objects.
 
 Cassettes make the system reproducible. They do **not** make the prompts good. A cassette faithfully
 replays a bad answer forever, and will do so in CI, green, at no cost — which is a real hazard, not
-a hypothetical one. The prompt quality question is answered by per-agent eval sets (`PRD-88`) and by
-the critic agent grading narratives (`PRD-95`), not by anything in this layer.
+a hypothetical one. The prompt quality question is answered by per-agent eval sets and by the
+critic agent grading narratives, not by anything in this layer.
 
 ## Alternatives considered
 

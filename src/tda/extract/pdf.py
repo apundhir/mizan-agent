@@ -128,7 +128,7 @@ def _rows(words: Sequence[dict[str, object]]) -> Iterator[tuple[int, list[dict[s
 def row_bands(words: Sequence[dict[str, object]]) -> dict[int, tuple[float, float]]:
     """Row number -> the vertical band that row occupies on the page, in PDF points.
 
-    Exists for the review screen (PRD-91), which has to show a reviewer **the rows a finding cites**
+    Exists for the review screen, which has to show a reviewer **the rows a finding cites**
     rather than the page they are somewhere on. A screen that renders the whole page and leaves the
     officer to find row 14 has failed the ten-second test as surely as one that renders nothing.
 
@@ -252,7 +252,7 @@ def parse_page(
     """
     layout.verify_layout(page_text)
     # Read from the page rather than accepted as an argument, so a record's hotel_id is never
-    # something a caller asserted. `intake` (PRD-89) is what checks the four submitted files agree on
+    # something a caller asserted. `intake` is what checks the four submitted files agree on
     # it; that check is only possible if each file states its own answer.
     hotel_id = hotel_id_of(page_text)
 

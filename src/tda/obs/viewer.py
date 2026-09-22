@@ -50,7 +50,7 @@ import json
 from typing import TYPE_CHECKING, Final
 
 from tda.obs.nodes import Phase
-from tda.obs.usage import AgentUsage
+from tda.obs.usage import AgentUsage, RateCard
 
 if TYPE_CHECKING:
     from decimal import Decimal
@@ -76,7 +76,9 @@ NODE_WIDTH: Final = 20
 REASON_LIMIT: Final = 96
 
 
-def render_tree(ledger: RunLedger, trace: TraceLog, nodes: NodeLog) -> str:
+def render_tree(
+    ledger: RunLedger, trace: TraceLog, nodes: NodeLog, rates: RateCard | None = None
+) -> str:
     """The whole run, as a tree. What `mizan trace` prints.
 
     Takes the three artifacts separately rather than a run directory, so a test can build one by
@@ -92,7 +94,7 @@ def render_tree(ledger: RunLedger, trace: TraceLog, nodes: NodeLog) -> str:
         stem = "   " if last_node else "│  "
         for position, record in enumerate(records):
             last_call = position == len(records) - 1
-            lines.extend(_call_lines(record, stem, last_call=last_call))
+            lines.extend(_call_lines(record, stem, last_call=last_call, rates=rates))
 
     for timing, records in attributed:
         if timing.model_calls > len(records):
@@ -118,7 +120,9 @@ def render_tree(ledger: RunLedger, trace: TraceLog, nodes: NodeLog) -> str:
         lines.append("")
         lines.append(f"after the run · {len(reviewed)} question(s) on the review screen")
         for position, record in enumerate(reviewed):
-            lines.extend(_call_lines(record, "   ", last_call=position == len(reviewed) - 1))
+            lines.extend(
+                _call_lines(record, "   ", last_call=position == len(reviewed) - 1, rates=rates)
+            )
 
     if leftover > 0:
         # Not dropped silently. See the module docstring: this is what a concurrent graph would
@@ -142,8 +146,13 @@ def _header(ledger: RunLedger) -> list[str]:
         f"{ledger.run_id}  {ledger.status}{reason}  {ledger.hotel_id}  {ledger.period}",
         f"  policy {ledger.policy_version} · metrics {ledger.metric_library_version} · "
         f"{ledger.model_id} ({ledger.provider_mode})",
-        f"  {len(ledger.inputs)} input file(s) · ${ledger.total_cost_usd} "
-        f"(rates {ledger.pricing_version}) · {ledger.duration_ms:,}ms",
+        f"  {len(ledger.inputs)} input file(s) · "
+        + (
+            f"${ledger.total_cost_usd} (rates {ledger.pricing_version})"
+            if ledger.total_cost_usd is not None
+            else "rates not configured"
+        )
+        + f" · {ledger.duration_ms:,}ms",
         f"  redacted: {redactions or 'nothing'}",
     ]
 
@@ -160,16 +169,24 @@ def _node_line(timing: NodeTiming, details: dict[str, str]) -> str:
     )
 
 
-def _call_lines(record: TraceRecord, stem: str, *, last_call: bool) -> list[str]:
-    """One model call: which prompt, which recording, what it cost, and what came back."""
+def _call_lines(
+    record: TraceRecord, stem: str, *, last_call: bool, rates: RateCard | None = None
+) -> list[str]:
+    """One model call: which prompt, which recording, what it cost, and what came back.
+
+    The money column is omitted entirely when no rate card is configured. Token counts always
+    print, because those are measured rather than priced.
+    """
     branch = "└─" if last_call else "├─"
     gutter = f"{stem}{'   ' if last_call else '│  '}"
     cassette = f"{record.cassette_key[:8]}…" if record.cassette_key else "-"
+    cost = _cost(record, rates)
     head = (
         f"{stem}{branch} {record.agent}/{record.prompt_version}"
         f"  [{record.provider_mode} {cassette}]"
         f"  {record.input_tokens:,}/{record.output_tokens:,} tok"
-        f"  ${_cost(record):.4f}  {record.duration_ms:,}ms"
+        + (f"  ${cost:.4f}" if cost is not None else "")
+        + f"  {record.duration_ms:,}ms"
     )
     lines = [head, f"{gutter}asked for: {record.output_contract}, with {_tools(record)}"]
     if record.error is not None:
@@ -290,26 +307,32 @@ def _details(nodes: NodeLog) -> dict[str, str]:
     }
 
 
-def _cost(record: TraceRecord) -> Decimal:
+def _cost(record: TraceRecord, rates: RateCard | None) -> Decimal | None:
     """What one call cost, under the same rate card the ledger used.
 
-    Routed through `AgentUsage` rather than multiplied here, so there is exactly one place in this
-    repository that turns tokens into money. Two would eventually disagree, and a viewer whose
+    Routed through `RateCard.cost_of` rather than multiplied here, so there is exactly one place in
+    this repository that turns tokens into money. Two would eventually disagree, and a viewer whose
     per-call figures do not add to the ledger's total is a viewer nobody trusts twice.
 
+    `None` when no rate card is configured. The caller prints the token columns regardless.
+
     One honest caveat: these are per **call** and rounded to four places like everything else, so
-    several sub-cent calls can each show `$0.0000` under an agent row that is not zero. The
+    several sub-cent calls can each round to zero under an agent row that is not zero. The
     authoritative rollup is the per-agent one in `run.json`, and *that* column adds up to its own
-    total exactly — see `AgentUsage.cost_usd`.
+    total exactly. See `RateCard.cost_of`.
     """
-    return AgentUsage(
-        agent=record.agent,
-        calls=1,
-        input_tokens=record.input_tokens,
-        output_tokens=record.output_tokens,
-        cache_read_tokens=record.cache_read_tokens,
-        duration_ms=record.duration_ms,
-    ).cost_usd
+    if rates is None:
+        return None
+    return rates.cost_of(
+        AgentUsage(
+            agent=record.agent,
+            calls=1,
+            input_tokens=record.input_tokens,
+            output_tokens=record.output_tokens,
+            cache_read_tokens=record.cache_read_tokens,
+            duration_ms=record.duration_ms,
+        )
+    )
 
 
 __all__ = ["FIELD_LIMIT", "VALUE_LIMIT", "render_tree", "summarise_output"]

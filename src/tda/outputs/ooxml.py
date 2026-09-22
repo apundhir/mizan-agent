@@ -10,7 +10,7 @@ because it looks like it should. python-docx does the same on its own core prope
 **The zip entries.** Every member carries a DOS timestamp, and the writer takes it from the clock.
 Two runs a second apart differ in the container even when every byte of content matches.
 
-Neither is content in any sense a reader cares about, and both defeat `make repro` (PRD-94), which
+Neither is content in any sense a reader cares about, and both defeat `make repro`, which
 exists to demonstrate that the same submission produces the same answer. A diff harness that has to
 know which differences are meaningless is a diff harness somebody eventually teaches to ignore a
 difference that was not.

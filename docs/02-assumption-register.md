@@ -10,7 +10,7 @@ could proceed.
 This register is the answer. **Eight assumptions**, each with the value chosen, why, what moves if the regulator rules otherwise, and — critically — **how much work it is to change**.
 
 > **This register is not a list of things we were denied.** It is the source of
-> `05-onboarding-asks.md` *(written in PRD-97)*: each entry becomes a decision the regulator would own to
+> `05-onboarding-asks.md` *(written alongside the demo scenes)*: each entry becomes a decision the regulator would own to
 > move from demonstration to pilot. The ask list is the POC's **output**, not its input.
 
 ## How to read the "cost to change" column

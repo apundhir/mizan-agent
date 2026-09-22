@@ -27,7 +27,7 @@ It was the obvious approach — annotate `Verdict.severity_counts` and let pydan
 it breaks the round trip. `Verdict` is `extra="forbid"`, so a dump carrying computed fields fails to
 re-validate: the artefact would be write-only, which is a strange property for the file that exists
 to be read back. A subclass with a real field keeps `model_validate_json(path.read_text())` working,
-and that is what `tda.review` (PRD-91) and PRD-94's repro diff will both do.
+and that is what `tda.review` and the eval harness's repro diff will both do.
 
 ## The review records are exempt from redaction, and that is the point of them
 
@@ -167,7 +167,7 @@ def write_verdict(directory: Path, verdict: Verdict) -> tuple[Path, Redaction]:
     """Write `verdict.json` into one run's artifact directory, redacted on the way out.
 
     Sorted keys and a trailing newline, matching `tda.obs.artifacts`: two runs of one submission
-    produce byte-identical files, which is what PRD-94's repro diff compares.
+    produce byte-identical files, which is what the eval harness's repro diff compares.
     """
     directory.mkdir(parents=True, exist_ok=True)
     document = VerdictDocument.of(verdict)

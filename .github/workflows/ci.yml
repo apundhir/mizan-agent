@@ -95,12 +95,12 @@ jobs:
 
       # ── the pipeline gates ──────────────────────────────────────────────────
       # This block used to assert that `make eval` and `make repro` correctly reported themselves
-      # unimplemented, and would go red if either ever silently exited 0. PRD-94 landed them, so
+      # unimplemented, and would go red if either ever silently exited 0. the eval harness landed them, so
       # that assertion is now exactly backwards and is replaced by the real thing.
       #
       # Fixtures rebuild before Tests, matching the Makefile's own order (`ci: ... corpus fixtures
       # fixtures-verify test eval repro`), not the order these steps happen to have been added in.
-      # `make test` now runs eval cases whose input points at a fixture's own workbook (PRD-94's
+      # `make test` now runs eval cases whose input points at a fixture's own workbook (the eval harness's
       # F4-F6 mapping cases), so the tree has to exist on disk before pytest starts, on a fresh
       # checkout, or the case fails to open a file that was never built rather than reporting the
       # cassette miss it exists to test.
@@ -121,7 +121,7 @@ jobs:
         run: make repro
 
       # Uploaded whether or not the eval passed: a scorecard is most useful on the run where
-      # something regressed, and PRD-96's release bundle needs this artefact anyway.
+      # something regressed, and the delivery pipeline's release bundle needs this artefact anyway.
       - name: Upload the eval scorecard
         if: always()
         uses: actions/upload-artifact@v4

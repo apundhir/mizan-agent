@@ -11,7 +11,7 @@
 `write_outputs` writes `verdict.json` first, **reads it back**, and renders the memo and the
 workbook comments from the copy that came off the disk. That is not a detour: `tda.obs.redact`
 removes personal data on the way out, and rendering the memo from the in-memory verdict instead
-would produce a document that says what the JSON beside it does not — which is the defect PRD-90's
+would produce a document that says what the JSON beside it does not — which is the defect observability's
 review found in `mizan run`'s console output, made durable in a Word file this time.
 
 The annotated workbook's **cells** are exempt, and deliberately: that file is a copy of the hotel's

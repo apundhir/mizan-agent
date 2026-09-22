@@ -1,7 +1,7 @@
 """`mizan run` — verify one submission and say what happened.
 
 `pyproject.toml` has declared this console script since M1 and the module has never existed, so
-`pip install -e .` produced a `mizan` command that failed on import. PRD-89 is the story that gives
+`pip install -e .` produced a `mizan` command that failed on import. the orchestrated graph is the story that gives
 it something to do.
 
 ## What it prints when a run does not finish
@@ -17,7 +17,7 @@ the command that stopped, rather than by a log file somebody has to find.
 ## Why there is no `--retry`
 
 A retry ladder that hides a transient extraction failure is worse than a halt: the officer cannot
-tell which runs were clean. Deferred deliberately in PRD-89 and recorded in ADR-0005.
+tell which runs were clean. Deferred deliberately in the orchestrated graph and recorded in ADR-0005.
 """
 
 from __future__ import annotations
@@ -36,6 +36,7 @@ from tda.contracts import Period, VerdictStatus
 from tda.graph import RunContext, new_run_id, verify_directory
 from tda.metrics import METRIC_LIBRARY_VERSION
 from tda.obs import (
+    RateCard,
     build_ledger,
     cost_summary,
     latest_run,
@@ -284,6 +285,7 @@ def main(argv: list[str] | None = None) -> int:
         nodes=result.nodes,
         usage=context.usage,
         duration_ms=_elapsed(started),
+        rates=RateCard.from_env(),
     )
 
     # The verdict is printed before anything is written. A run that reached a conclusion and then
@@ -291,7 +293,7 @@ def main(argv: list[str] | None = None) -> int:
     # from `mkdir` would lose the answer to keep the paperwork.
     print(result.render())
     print()
-    print(cost_summary(context.usage))
+    print(cost_summary(context.usage, RateCard.from_env()))
 
     written = _write(
         args.artifacts,
@@ -354,7 +356,7 @@ def _trace(target: str | None, artifacts: Path) -> int:
         print(f"cannot read a run from {directory}: {exc}", file=sys.stderr)
         return COULD_NOT_RUN
 
-    print(render_tree(ledger, trace, nodes))
+    print(render_tree(ledger, trace, nodes, RateCard.from_env()))
     return OK
 
 

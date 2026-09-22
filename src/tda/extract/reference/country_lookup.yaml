@@ -34,7 +34,7 @@
 # far better failure than a silent mismapping: a guest counted under the wrong country is a wrong
 # number presented as a right one, and nothing downstream can detect it.
 #
-# The resolution agent (PRD-88) proposes an addition for a human to accept. It never writes here, and
+# The resolution agent proposes an addition for a human to accept. It never writes here, and
 # its abstention is the blocking finding rather than a fallback (D-NAT-13).
 
 version: 1.0.0

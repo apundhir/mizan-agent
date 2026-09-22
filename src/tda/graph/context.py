@@ -12,7 +12,7 @@ alongside, and are appended to rather than returned.
 
 ## Why the usage checkpoint exists
 
-`UsageLedger` accumulates across a whole run. PRD-89 asks for per-node token counts, which is a
+`UsageLedger` accumulates across a whole run. the orchestrated graph asks for per-node token counts, which is a
 different question: a node's figures are what *it* spent, not what the run had spent by the time it
 finished. `checkpoint()` remembers the totals on entry and `since_checkpoint()` subtracts, so
 `claim_parse` reports the mapping call and `publish` reports the narrative calls, rather than both

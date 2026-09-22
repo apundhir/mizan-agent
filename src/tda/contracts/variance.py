@@ -170,8 +170,8 @@ class Finding(BaseModel):
         #
         #    V5 with no claimed value: a *missing claim* - the source supports a figure and the
         #    workbook is silent about it (D-MAT-04). There is no cell because the hotel wrote
-        #    nothing, which is the finding. This was found by PRD-87, and it is the same
-        #    over-broad-rule correction validator 6 needed in PRD-85: "only V7" was written when V7
+        #    nothing, which is the finding. This was found by reconciliation and classification, and it is the same
+        #    over-broad-rule correction validator 6 needed in PDF extraction: "only V7" was written when V7
         #    was the only absence anyone had met. Note how narrow the exemption is - a V5 *orphan*
         #    claim (D-MAT-05) has a cell and is not exempt, so the rule still bites on the direction
         #    where a citation genuinely exists.
@@ -245,7 +245,7 @@ class Finding(BaseModel):
         # 6. A *variance* with neither side has nothing to report. A refusal is not a variance.
         #
         # This rule was written as "a finding needs at least one of claimed or computed" and was too
-        # broad, which only became visible when PRD-85 raised the first real V7. An extraction limit
+        # broad, which only became visible when PDF extraction raised the first real V7. An extraction limit
         # raised before the workbook is parsed has no claimed value (nothing was read) and no computed
         # value (that is what it is reporting) — "I could not read row 14 of page 3" is a finding a
         # reviewer must act on and carries no numbers by nature. The `computed` field's own description

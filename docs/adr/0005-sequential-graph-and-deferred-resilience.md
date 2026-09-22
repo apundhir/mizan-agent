@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-09-14
 - **Related:** [ADR-0001](0001-deterministic-core-agentic-edges.md) · [ADR-0004](0004-agent-runtime.md)
-- **Issues:** PRD-89
+- **Issues:** the orchestrated graph
 
 ## Context
 
@@ -102,7 +102,7 @@ here.
 
 **Nothing resumes.** A run that dies at `recompute_reconcile` re-extracts from scratch.
 
-**One acceptance criterion moved while it was being built.** PRD-89's table says `extract` halts
+**One acceptance criterion moved while it was being built.** the orchestrated graph's table says `extract` halts
 with a blocking finding. A whole document that will not open cannot produce one: `Finding` requires
 a citation on at least one side (D-EV-01), and a file that will not open has no page to cite —
 inventing `page=1` would put a false citation in front of a reviewer, which `tda.contracts.refs`

@@ -11,7 +11,7 @@ this repository: it would make a reviewer confident about the wrong thing.
 
 **A decision names who made it.** FR-10 and FR-11 — nothing material passes without a human
 decision, and the record says who and when. The gate is exercised here rather than through the
-screen, because `tda.review.decisions` is what both the screen and PRD-91's fallback console flow
+screen, because `tda.review.decisions` is what both the screen and the review screen's fallback console flow
 would call, and a guarantee tested through one surface is a guarantee the other can quietly break.
 
 The Streamlit module gets an import check and nothing more. It is a shell over the two modules
@@ -791,7 +791,7 @@ def test_a_decision_is_not_recorded_at_all_if_the_memo_cannot_follow(
 
 def test_a_definitional_item_cannot_be_amended_by_the_gate(reviewed_run: Path) -> None:
     """The rule used to be a `disabled=` on a Streamlit button, so it held for the surface that
-    implemented it and not for the gate — PRD-91's own console fallback would have recorded a
+    implemented it and not for the gate — the review screen's own console fallback would have recorded a
     corrected figure against a policy difference, telling a hotel to change a number that is not
     wrong."""
     with pytest.raises(ReviewError, match="cannot be amended"):

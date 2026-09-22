@@ -6,7 +6,7 @@ START → intake → extract → claim_parse → recompute_reconcile → publish
            └─────────┴───────────┴──────────────────┴──────────► publish (finished)
 ```
 
-Sequential, on purpose and for this sprint only. PRD-89 defers `Send` fan-out across the three
+Sequential, on purpose and for this sprint only. the orchestrated graph defers `Send` fan-out across the three
 PDFs, the bounded retry ladder, and checkpointed interrupt-and-resume, and the reasoning is in
 ADR-0005: **a retry ladder that hides a transient extraction failure is worse than a halt**,
 because the officer cannot tell which runs were clean.

@@ -1,4 +1,4 @@
-"""Narrative grading (PRD-95): the wiring, proven apart from the critic's own judgement.
+"""Narrative grading: the wiring, proven apart from the critic's own judgement.
 
 Three kinds of test live here, mirroring the split `test_scorer_discriminates.py` already draws
 for the numeric side.

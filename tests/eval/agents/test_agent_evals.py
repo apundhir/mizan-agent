@@ -61,7 +61,7 @@ pytestmark = pytest.mark.eval
 CASES = load_cases()
 
 # Every agent in the roster now has an eval set. The exemption that used to sit here named
-# reviewer-assist and was deleted when PRD-93 landed it, which is what an exemption listed by name
+# reviewer-assist and was deleted when the reviewer-assist agent landed it, which is what an exemption listed by name
 # rather than a loosened assertion buys: it has to be removed, not merely stopped applying.
 AWAITING_IMPLEMENTATION: frozenset[str] = frozenset()
 
@@ -227,7 +227,7 @@ def test_an_unrecorded_case_is_reported_rather_than_skipped() -> None:
 
 
 def test_the_cases_live_where_the_story_says_they_do() -> None:
-    """`tests/eval/agents/`, named in PRD-88. A convention nobody can find is not a convention."""
+    """`tests/eval/agents/`, named in the agent runtime. A convention nobody can find is not a convention."""
     assert CASES_ROOT.is_dir()
     assert CASES_ROOT.parent.parts[-3:] == ("tests", "eval", "agents")
 

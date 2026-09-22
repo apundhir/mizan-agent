@@ -36,7 +36,15 @@ from typing import TYPE_CHECKING
 from tda.agents.provider import ProviderError
 from tda.cli import failure_ledger
 from tda.graph import RunContext, new_run_id, verify_directory
-from tda.obs import NodeOutcome, build_ledger, read_run, redact, routing_records, write_run
+from tda.obs import (
+    NodeOutcome,
+    RateCard,
+    build_ledger,
+    read_run,
+    redact,
+    routing_records,
+    write_run,
+)
 from tda.outputs import VERDICT_FILE, read_verdict, write_outputs
 from tda.review.sandbox import run_sandboxed
 
@@ -233,6 +241,7 @@ def _execute(job: RunJob) -> None:
         nodes=result.nodes,
         usage=job.context.usage,
         duration_ms=job.duration_ms,
+        rates=RateCard.from_env(),
     )
     try:
         job.written = write_run(

@@ -320,8 +320,8 @@ def test_a_valid_finding_carries_both_citations() -> None:
 def test_a_missing_excel_cell_is_legal_only_where_no_cell_exists() -> None:
     """D-EV-02 and D-MAT-04. There are exactly two such cases, and the rule names both.
 
-    This started as "only V7" and was widened by PRD-87, which is the same correction validator 6
-    needed in PRD-85: the rule was written when V7 was the only absence anyone had met. A **missing
+    This started as "only V7" and was widened by reconciliation and classification, which is the same correction validator 6
+    needed in PDF extraction: the rule was written when V7 was the only absence anyone had met. A **missing
     claim** — the source supports a figure and the workbook is silent about it — has no cell because
     the hotel wrote nothing, and that silence *is* the finding.
 

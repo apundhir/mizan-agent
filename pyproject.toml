@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mizan"
-version = "0.6.0"
+version = "0.6.1"
 description = "Agentic reconciliation and verification system (POC) - deterministic core, agentic edges"
 requires-python = ">=3.12"
 license = { text = "Apache-2.0" }

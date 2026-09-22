@@ -147,7 +147,7 @@ Verified by re-running rather than copied from an earlier tag.
   not yet built. Each needs a model recording (`make record`, which needs `ANTHROPIC_API_KEY`)
   that has not been taken for those three cases.
 - **`make ci` is green**, in 2 minutes 37 seconds on the machine this was written on. Earlier in
-  the same session it was red, because a concurrent, in-flight change on this branch (PRD-96,
+  the same session it was red, because a concurrent, in-flight change on this branch (the delivery pipeline,
   container packaging) failed `make types` on a file outside this issue's scope
   (`tests/unit/test_bundle.py`); that change was fixed before this document was finished, and the
   number above is the state it left behind rather than the state along the way. The two minutes

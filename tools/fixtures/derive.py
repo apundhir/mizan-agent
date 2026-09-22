@@ -1,6 +1,6 @@
 """The derivation: what a fixture should produce, computed from the fixture rather than declared.
 
-This module is the acceptance criterion of PRD-94, and it is written so that the criterion is
+This module is the acceptance criterion of the eval harness, and it is written so that the criterion is
 checkable by reading it. Two properties hold, and both are structural rather than promised:
 
 **Whether there is a finding is decided by arithmetic, never by the spec.** `expectation` takes the

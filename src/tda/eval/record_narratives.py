@@ -2,7 +2,7 @@
 
 `python -m tda.agents.provider` (`tda.agents.provider.record`) records every hand-written eval case
 once, live. It cannot record these: a fixture's findings are not declared in a case file, they come
-out of running the pipeline, in replay, against the mapping cassettes PRD-94 already recorded, and
+out of running the pipeline, in replay, against the mapping cassettes the eval harness already recorded, and
 reading its published `Verdict` back. This module does exactly that for the four fixtures that
 carry a finding (F2, F3, F4, F6), then runs each one through `narrate()`/`grade()` against a live
 `RecordingProvider`, the same mechanism `tda.agents.provider.record` uses for its cases.
@@ -31,7 +31,7 @@ from tda.agents.runtime import AgentRunner
 from tda.agents.tools import ToolRegistry
 from tda.eval.narrative import grade_finding
 from tda.eval.run import DEFAULT_FIXTURES_ROOT, FixtureError, run_fixture
-from tda.obs import PRICING_VERSION, TraceLog, UsageLedger
+from tda.obs import RateCard, TraceLog, UsageLedger, spend_line
 from tda.policy import Policy, load_policy
 
 FIXTURES_WITH_FINDINGS = ("F2", "F3", "F4", "F6")
@@ -143,8 +143,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         f"\n{len(written)} cassette(s) written, {len(failures)} failure(s).\n"
-        f"  cost: ${usage.total_cost_usd():.4f} over {usage.total_calls()} call(s), "
-        f"at the rates in tda.obs.usage (version {PRICING_VERSION})",
+        f"  {usage.total_calls()} call(s). {spend_line(usage, RateCard.from_env())}",
         file=sys.stderr,
     )
     return 1 if failures else 0

@@ -11,7 +11,7 @@ string that did not match. Not the closest match, not a best guess, not a defaul
 - **Not by edit distance.** `Austria` and `Australia` differ by three characters and by eleven
   thousand kilometres. Any threshold loose enough to catch a real typo is loose enough to catch that.
 - **Not by substring.** `Guinea` is a substring of `Papua New Guinea`, and `Niger` of `Nigeria`.
-- **Not by a model's best effort.** The resolution agent (PRD-88) may *propose* a mapping for a human
+- **Not by a model's best effort.** The resolution agent may *propose* a mapping for a human
   to accept, and its abstention produces the same blocking finding (D-NAT-13). It never resolves one
   silently, because a guest counted under the wrong country is a wrong number presented as a right one
   and nothing downstream can detect it.

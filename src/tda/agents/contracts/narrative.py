@@ -13,7 +13,7 @@ reject one if there were. The narrative refers to a finding by id; the figures a
 it from `Finding.claimed`, `Finding.computed` and `Finding.difference`, which were computed by
 `tda.metrics` from typed records. A model never restates a number, so a model can never restate one
 wrongly. What remains possible is a *word* implying a magnitude — "substantially", "a handful of" —
-and that is the critic's job (PRD-95), not a type's.
+and that is the critic's job, not a type's.
 
 **A cause the classifier did not assign.** `cites_permutation` names the permutation the narrative
 leans on, and the caller checks it against `Finding.explaining_permutation` before the sentence is

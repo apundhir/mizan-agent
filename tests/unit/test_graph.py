@@ -8,7 +8,7 @@ extraction, the claim parser and the metric library agreeing with each other, no
 them being right about inputs a test handed it.
 
 Everything else is about failure, because a pipeline is judged on what it does when a stage cannot
-do its job. PRD-89 names five behaviours and each has a test:
+do its job. the orchestrated graph names five behaviours and each has a test:
 
 | Node | What it must do | Test |
 |---|---|---|
@@ -146,7 +146,7 @@ def test_a_clean_run_records_one_granted_routing_decision_per_model_call(
 def test_a_spent_budget_refuses_the_mapping_call_and_fails_the_node(
     policy: Policy, period: Period
 ) -> None:
-    """Exhaustion is a refusal, not a truncation (PRD-88). With the mapping agent's own per-agent
+    """Exhaustion is a refusal, not a truncation. With the mapping agent's own per-agent
     cap set to zero, `claim_parse` never gets to call it: the supervisor raises before the request
     reaches the provider, the node records `FAILED` rather than `OK`, and the run stops there
     rather than producing a verdict a reviewer would mistake for a complete one."""
@@ -426,7 +426,7 @@ def test_an_entered_node_with_no_exit_names_where_the_run_stopped() -> None:
 
 
 def test_node_records_round_trip_through_jsonl(policy: Policy, period: Period) -> None:
-    """PRD-90 writes these to `artifacts/<run_id>/`. They have to survive the trip."""
+    """observability writes these to `artifacts/<run_id>/`. They have to survive the trip."""
     log = run_demo(policy, period).nodes
 
     assert NodeLog.from_jsonl(log.to_jsonl()).records == log.records
@@ -478,7 +478,7 @@ def test_the_cli_exits_non_zero_for_a_submission_a_human_must_read(tmp_path: Pat
 def test_a_run_writes_its_artifacts_and_trace_reads_them_back(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """The PRD-90 loop, at the level a person actually meets it: run, then ask what happened.
+    """The observability loop, at the level a person actually meets it: run, then ask what happened.
 
     Deliberately a *rejected* submission rather than a clean one, and not as a convenience. The
     artifacts of a run that did not finish are the ones worth proving exist, because that is when
@@ -506,8 +506,11 @@ def test_a_run_writes_its_artifacts_and_trace_reads_them_back(
 
     run_output = capsys.readouterr().out
     assert "artifacts:" in run_output
-    # The cost is printed at the end of `make run`, with the rate card that produced it.
-    assert "rates" in run_output
+    # The usage summary is printed at the end of `make run`. This submission is rejected before any
+    # agent runs, so the honest summary is that there were no model calls to price. A run that made
+    # calls with no rate card exported says "rates not configured" instead, and one made with rates
+    # exported names the version: both are covered in tests/unit/test_obs.py.
+    assert "no model calls" in run_output
     assert "mizan trace" in run_output
 
     directories = [d for d in artifacts.iterdir() if d.is_dir()]
@@ -752,7 +755,7 @@ def _definitional_finding(period: Period) -> Finding:
     )
 
 
-# ── the per-node failure behaviours PRD-89 names ─────────────────────────────
+# ── the per-node failure behaviours the orchestrated graph names ─────────────────────────────
 
 
 def test_an_unreadable_report_is_rejected_rather_than_crashing(

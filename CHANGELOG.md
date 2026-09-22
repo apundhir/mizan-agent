@@ -3,7 +3,50 @@
 Versioning is `0.<milestone>.<patch>` through the POC — `v0.1.0` at the end of M1, `v0.6.0` at the
 end of M6. Semantic versioning of a POC's public API would be a fiction.
 
-## v0.6.0 — The Run console, hosted (PRD-115) · 2026-09-20
+## v0.6.1 — What the public repository carries · 2026-09-22
+
+A patch, and the whole of it is about what leaves this repository rather than what happens inside
+it. An audit of the published snapshot found no leaked credential in any blob of any public commit,
+and no development history, because the snapshot is a squashed export. It found something else: the
+three documents the snapshot tool denies had been published in the first public commit and only
+removed at the tip, so all three are still fetchable from that commit and from the tag beside it.
+Removing a file from a later commit does not unpublish it.
+
+That history stays as it is. What changes is the tip, and the guard that decides what the tip may
+carry.
+
+**No rate card ships any more.** Prices were module constants: a number that is wrong for most
+readers within a quarter, and a disclosure of one account's commercial terms. They now come from
+four environment variables, the same way a key does, and they are absent by default.
+
+**A cost is `Decimal | None`, never a zero standing in for "unknown".** Every replay run in this
+repository genuinely costs nothing, so a zero sentinel would be indistinguishable from the truth. A
+run with no rate card configured reports `rates not configured` and still prints every token count,
+because tokens are measured and prices are supplied. A partial rate card raises rather than filling
+the gap with a default that would under-report every run that used the missing rate, silently and
+plausibly.
+
+**The audit reads content, not just paths.** A path denylist only knows about paths, which is
+exactly how the same material reached a reader through prose in files nobody had thought to deny.
+The release now refuses on an internal tracker key, a client region pin or acronym, a committed rate
+card, or a currency amount, and names the file and the line. Run against the previously published
+tree it refuses with more than twenty findings, which is the shape of the problem it was written
+for.
+
+**The tool is findable.** It was referenced by no `make` target, no workflow, no test and no
+document, so anyone following the release procedure would never have learned it existed. It is now
+step 9 of that procedure and `make snapshot`.
+
+### Not done, and why
+
+- **The demo hotel id stays.** It sits inside `request_canonical` in twelve cassettes, which is what
+  the cassette key hashes, so changing it turns every one into a replay miss. A miss is a hard error
+  by design, so the pipeline would go red with re-recording against the live API as the only route
+  back. A synthetic identifier is not worth that.
+- **The package is still `src/tda/`.** 1,387 occurrences across 223 files. It is the largest
+  remaining identifier on the tip and it deserves its own change rather than a footnote in this one.
+
+## v0.6.0 — The Run console, hosted · 2026-09-20
 
 A viewer, not just a reader of a committed corpus: pick one of five prepared scenes, watch the
 five-node pipeline work, read the verdict with the report rows and the workbook cell side by side,
@@ -206,9 +249,9 @@ real bugs in that mechanism's first form.
   a real isolation guarantee, after five rounds of content inspection alone did not converge on
   one.
 
-## v0.5.2 — Narrative grading (PRD-95) · 2026-09-16
+## v0.5.2 — Narrative grading · 2026-09-16
 
-The numbers have been covered by `make eval` since PRD-94. The prose was not, and the prose is what
+The numbers have been covered by `make eval` since the eval harness landed. The prose was not, and the prose is what
 the officer reads. The critic agent was already built and already passing its own eval set before
 this patch started. This patch wires it into `make eval`, over every narrative across all six
 fixtures: **11 of 11 real findings narrated and graded, 6 of 6 fixtures still green.**
@@ -229,7 +272,7 @@ non-numeric, code-derived fact for these three classes (`tda.agents.narrative._s
 which side is missing a figure, or that nothing could be compared at all, so the agent has real
 material instead of a blank slate. `prompts/narrative/v2.md` names the failure mode explicitly:
 restate the structural fact and stop; a citation belongs beside the sentence, not inside it. Three
-recording rounds converged on 11 of 11 passing on their merits, the same discipline PRD-94's F6
+recording rounds converged on 11 of 11 passing on their merits, the same discipline the eval harness's F6
 label needed.
 
 ### Added
@@ -256,7 +299,7 @@ label needed.
 
 ### Known gap closed
 
-- **No critic agent wired into a grading run** (PRD-95), closed. `narrate()`/`grade()` run only
+- **No critic agent wired into a grading run**, closed. `narrate()`/`grade()` run only
   inside `make eval`'s scorer, never inside `mizan run`: `publish_node`'s own doc table has said
   "code + model" since M4, and nothing has called a model there yet. That gap is real, decided with
   the user to stay open, and belongs to its own issue rather than this one.
@@ -266,7 +309,7 @@ label needed.
 A patch, and the one that deletes the sentence every tag since v0.2.0 has carried. The API key
 arrived, `make record` ran for the first time, and the eval set has numbers: **20 of 20 cases
 recorded, 20 of 20 passing, 0 unmeasured**. `make run` completes end to end in replay, offline, with
-no key. Three recording rounds, $1.63 in total.
+no key. Three recording rounds.
 
 The first round recorded fourteen of the twenty. Everything below came out of the six that did not,
 and none of it was visible from any amount of review, because a contract nothing has ever produced
@@ -361,10 +404,10 @@ of careful instruction lost to five lines of arithmetic.
 ### Known gaps at this tag
 
 - **`make eval` and `make repro` remain unimplemented** and still exit 2. **No eval scorecard.**
-  PRD-94. The numbers in this entry came out of `pytest` and a commit message, which is not
+  the eval harness. The numbers in this entry came out of `pytest` and a commit message, which is not
   something anybody can diff between tags.
-- **No critic agent wired into a grading run** (PRD-95), **no delivery pipeline** (PRD-96), **no
-  demo scenes** (PRD-97).
+- **No critic agent wired into a grading run**, **no delivery pipeline**, **no
+  demo scenes**.
 - **The review screen's question box is recorded, not answered.** The eight reviewer-assist cassettes
   cover the eight eval-case questions. Anything an officer actually types misses, and the box says
   so. Honest, and not useful. ADR-0009 holds the argument.
@@ -381,7 +424,7 @@ a replay run reaches `publish`, and the reviewer-assist path is exercised by rec
 a real model rather than by its three tools called as pure functions. The fourth, an officer's
 free-text question, is listed above as the gap it remains.
 
-### PRD-96 — `make bundle`, and the delivery pipeline it completes
+### `make bundle`, and the delivery pipeline it completes
 
 The gap this tag's own "Known gaps" section names as open: **no delivery pipeline.** It is closed.
 
@@ -411,8 +454,8 @@ active rather than merely documented; nothing there needed a change.
 
 The surfaces a human actually touches. This is the first tag at which a verification **leaves the
 machine**: three artefacts an officer files, a screen they decide on, and an assistant that answers
-their questions or refuses to. It carries **PRD-91** (the review screen), **PRD-92** (the outputs)
-and **PRD-93** (the reviewer-assist agent), and closes the gaps v0.4.0 recorded as *"no verdict
+their questions or refuses to. It carries **the review screen**, **the outputs**
+and **the reviewer-assist agent**, and closes the gaps v0.4.0 recorded as *"no verdict
 document and no memo"* and *"no human review screen"*.
 
 ### The claim this milestone establishes
@@ -446,7 +489,7 @@ is nothing behind it. So an uncited answer is not a weaker answer; it is unconst
   that did not happen**.
 - **`make review`** — the officer's screen. Each finding is a self-contained card: the figures, the
   report rows outlined in red, the workbook cell outlined in red, and accept/reject/amend with a
-  note. PRD-91's acceptance criterion is a stopwatch, and the layout is an argument about it.
+  note. the review screen's acceptance criterion is a stopwatch, and the layout is an argument about it.
 - **Evidence cropped to what was cited.** `tda.extract.pdf.row_bands` is the *same generator* that
   numbered the rows during extraction, so the crop and the caption cannot drift. Every crop is
   checked against the digest `run.json` recorded — pointing the screen at the wrong submission
@@ -498,7 +541,7 @@ finding.
 ### Fixed
 
 **A definitional finding was coloured green by redaction, and a material one could be.** Found by
-the PRD-92 review: the workbook colouring keyed off text that redaction had already replaced, so
+the outputs review: the workbook colouring keyed off text that redaction had already replaced, so
 the most expensive class of finding rendered as the reassuring colour.
 
 **The reviewer's own name was redacted out of the accountability record.** `write_verdict` ran the
@@ -509,7 +552,7 @@ exempt. Review records are now lifted out before redaction and restored after.
 `make review` cropped the demo corpus and captioned it with this run's citations — a wrong picture
 under a correct caption, which is the worst thing an evidence screen can do.
 
-**The reviewer-assist agent was never shown the verdict.** Found by the PRD-93 review, and the most
+**The reviewer-assist agent was never shown the verdict.** Found by the reviewer-assist review, and the most
 instructive defect of the milestone. `ModelRequest` carries text, not tool calls, so a driver that
 built a tool session and never called through it handed the model three tool *descriptions* and no
 run — no run id, no finding ids, no page, no cell, no clause. Every honest answer it could give
@@ -519,8 +562,8 @@ fabrication check that had inverted into a fabrication generator while looking e
 working one. Nothing caught it: with no cassettes the evals report `NOT_RECORDED`, and every test
 exercised the three tools as pure functions rather than through the driver.
 
-Thirty-eight further defects across three adversarial reviews (15 in PRD-92, 11 in PRD-91, 12 in
-PRD-93), each with a regression test. A sample of the ones that were hidden by tests that passed:
+Thirty-eight further defects across three adversarial reviews (15 in the outputs, 11 in the review screen, 12 in
+the reviewer-assist work), each with a regression test. A sample of the ones that were hidden by tests that passed:
 
 - **`_verdict_refs` ignored the definitional array**, so a correct citation about a V2 rendered to
   the officer as *"the assistant cited evidence this run does not contain — treat anything else it
@@ -538,14 +581,14 @@ PRD-93), each with a regression test. A sample of the ones that were hidden by t
 - **Cropping `image.original` lost the red outline** the crop existed to show.
 
 Each review again found tests that passed against code with the guarantee **deleted** — six in
-PRD-92, five in PRD-91, five more in PRD-93. Every one was replaced with a test verified by removing
-the behaviour and watching it fail, and the same discipline was applied to the fixes: in PRD-93
+the outputs, five in the review screen, five more in the reviewer-assist work. Every one was replaced with a test verified by removing
+the behaviour and watching it fail, and the same discipline was applied to the fixes: in the reviewer-assist work
 alone, 51 mutations were run across the build and the review round, 50 caught. The single miss was a
 decorative import-time check, rewritten.
 
 ### A suggested fix that was wrong, recorded because the near-miss is instructive
 
-The PRD-93 review proposed making `check_citations`' catch-all raise, on the reasoning that valid
+The reviewer-assist review proposed making `check_citations`' catch-all raise, on the reasoning that valid
 citations are handled by their guards falling through. They are not: a valid `PdfCitation` fails its
 guard, falls past three non-matching arms and lands in the catch-all — so the fix as suggested
 refused **every honest answer**. The existing tests caught it on the first run. The match now
@@ -562,13 +605,13 @@ instruction.
 - **The assistant cannot answer "by how much?"** By design, per ADR-0009 — but it is a real cost and
   an officer meeting three declines in a row may stop asking.
 - **`make eval` and `make repro` remain unimplemented** and still say so. **No eval scorecard.**
-  PRD-94.
+  the eval harness.
 - **A bare name is still not redacted.** The question box is free text a human types, so this limit
   now has a second path to it: `redact` matches structure — an email, a phone number, a booking
   reference — and a guest's name typed into the box reaches the trace verbatim. A test pins the gap
   rather than implying it away.
-- **No critic agent wired into a grading run** (PRD-95), **no delivery pipeline** (PRD-96), **no
-  demo scenes** (PRD-97).
+- **No critic agent wired into a grading run**, **no delivery pipeline**, **no
+  demo scenes**.
 - **No run-time target, and no time-saving figure anywhere.** Durations are recorded, never
   targeted, until somebody measures the manual baseline.
 
@@ -590,8 +633,7 @@ corpus against its generator, and the eval scorer's own discrimination check acr
 
 The agents, the graph that runs them, and the record they leave behind. This is the first tag at
 which a **single command verifies a submission end to end** and leaves enough behind to defend the
-answer afterwards. It carries **PRD-88** (agent runtime), **PRD-89** (the orchestrated graph and
-`mizan run`) and **PRD-90** (observability), and closes the gap v0.3.0 recorded as *"no agent has
+answer afterwards. It carries **the agent runtime**, **the orchestrated graph** and **observability**, and closes the gap v0.3.0 recorded as *"no agent has
 ever run"*.
 
 ### The claim this milestone establishes
@@ -641,7 +683,7 @@ records only its approvals cannot answer why an agent did not run.
 
 ### The decision that took the most care
 
-**Redact the artifacts rather than withhold them.** PRD-90 asked for a test scanning the trace for
+**Redact the artifacts rather than withhold them.** The observability work asked for a test scanning the trace for
 name-shaped content from the corpus. The corpus has no names in it — `tools/datagen/ledger.py` emits
 a salted `guest_ref` and says why — so that test would have passed vacuously, which is the worst kind
 of green.
@@ -674,7 +716,7 @@ the usage ledger alone, so `NodeTiming.model_calls` disagreed with the trace —
 viewer attributes records to nodes by consuming that count in order, one uncounted failure shifted
 every later call onto the wrong node with nothing on the page looking wrong.
 
-Six further defects, found by an adversarial review of PRD-89 before it merged, each with a
+Six further defects, found by an adversarial review of the orchestrated graph before it merged, each with a
 regression test:
 
 - **Every escalated run died.** `Reconciliation.raised` filters by severity and `.definitional` by
@@ -691,13 +733,13 @@ regression test:
 
 ### One acceptance criterion that moved, and why
 
-PRD-89 asked for an unreadable report to produce a **blocking finding**. It cannot: a finding must
+The orchestrated graph work asked for an unreadable report to produce a **blocking finding**. It cannot: a finding must
 cite something (D-EV-01) and a document that will not open has no page. Inventing `page=1` would put
 a citation in front of a reviewer that leads nowhere. An unopenable file is an **intake rejection**
 (`UNREADABLE_FILE`) instead, and row-level defects inside a readable document are still findings and
 still cite their page. Recorded in ADR-0005.
 
-### Eight defects an adversarial review found in PRD-90 before it merged
+### Eight defects an adversarial review found in observability before it merged
 
 Listed because the mistakes are more instructive than the design, and three of them were hidden by
 tests that passed:
@@ -708,7 +750,7 @@ tests that passed:
 - **The console printed the unredacted ledger** while the file beside it said `[redacted:email]`.
   `mizan run` now prints the ledger parsed back from the bytes that reached the disk.
 - **The repro exclusions could not see nested fields**, so `nodes.duration_ms` and
-  `usage.duration_ms` — wall clock, different on every run — would have failed PRD-94's diff on
+  `usage.duration_ms` — wall clock, different on every run — would have failed the eval harness's diff on
   every single run.
 - **`run.json` contradicted itself**: it reported `"redactions": []` while its own body carried a
   placeholder, because the counts were stamped before the ledger was redacted.
@@ -732,9 +774,9 @@ fail.
   the eval cases report `NOT_RECORDED` **in words** rather than skipping — a skip reads as a pass in
   a CI summary, and this is not a pass. `make run` in replay therefore halts at `claim_parse`, by
   design: a miss is a hard error, never a quiet fall-through to the network.
-- **No verdict document and no memo.** PRD-92.
+- **No verdict document and no memo.** That is the outputs work.
 - **No human review screen.** M5, and `reviewer_assist` is in the roster with its allowlist but has
-  no implementation yet (PRD-93) — the roster is the audited record, and an agent in the architecture
+  no implementation yet — the roster is the audited record, and an agent in the architecture
   diagram but not in the table is an agent whose permissions nobody wrote down.
 - **`make eval` and `make repro` remain unimplemented** and still say so. **No eval scorecard in this
   release**, for the same reason as at v0.3.0.
@@ -766,8 +808,7 @@ discrimination check.
 
 Both halves of the comparison, and the engine that decides what a difference **means**. This is the
 first tag at which the system reads a real submission end to end: three PDFs and a workbook in, a
-classified set of findings out. It carries **PRD-85** (PDF extraction), **PRD-86** (the Excel claim
-parser) and **PRD-87** (reconciliation and classification), and closes the gap v0.2.0 recorded as
+classified set of findings out. It carries **PDF extraction**, **the Excel claim parser** and **reconciliation and classification**, and closes the gap v0.2.0 recorded as
 *"nothing reads the PDFs yet"*.
 
 ### The claim this milestone establishes
@@ -888,18 +929,18 @@ counted.
 
 - **No agent has ever run.** The mapping agent's request builder and prompt exist; nothing is
   recorded, no cassette is committed, and every test drives the checked path with hand-written
-  mappings. The agent runtime, the roster and `make record` are PRD-88.
+  mappings. The agent runtime, the roster and `make record` are the agent runtime.
 - **No narrative, no verdict document, no memo.** Findings carry a plain-English `detail` written by
-  code, so the output is readable with no model available — but nothing renders it. PRD-92.
+  code, so the output is readable with no model available — but nothing renders it. the outputs.
 - **`make eval` and `make repro` are still unimplemented** and still correctly report themselves so.
   There is therefore **no eval scorecard in this release PR**, which §5 of the git workflow requires
-  from the tag where one exists. PRD-94.
-- **One corpus, one hotel, one quarter.** The six adversarial fixtures are PRD-94.
+  from the tag where one exists. the eval harness.
+- **One corpus, one hotel, one quarter.** The six adversarial fixtures are the eval harness.
 - **No human review screen and no annotated workbook.** M5.
 
 ### Closed since v0.2.0
 
-v0.2.0 listed *"Nothing reads the PDFs yet (PRD-85). The `PdfRef`s in the Gate 2 fixture are
+v0.2.0 listed *"Nothing reads the PDFs yet. The `PdfRef`s in the Gate 2 fixture are
 synthesised."* That gap is closed: extraction reads the three committed reports, reconciles each
 against its own printed totals, and the citations on every computed value are real page and row
 ranges.
@@ -994,13 +1035,13 @@ code that produced it would be demonstrating that the code equals itself.
 
 - **`make run`, `review`, `eval`, `repro`, `demo` still exit 2** — declared, not implemented. CI
   asserts they keep saying so, because a no-op exiting 0 would make an unbuilt pipeline look green.
-- **Nothing reads the PDFs yet** (PRD-85). The `PdfRef`s in the Gate 2 fixture are synthesised; real
+- **Nothing reads the PDFs yet**. The `PdfRef`s in the Gate 2 fixture are synthesised; real
   citations come with the extractor.
-- **No reconciliation, tolerance or classification** (PRD-87). No `Finding` is constructed anywhere.
+- **No reconciliation, tolerance or classification**. No `Finding` is constructed anywhere.
 - **`Finding.pdf_ref` still cannot cite an inventory row.** The gap `InventoryRef` closed for
-  `ComputedValue` is open on `Finding`; recorded on PRD-87, where a `room_nights_available` variance
+  `ComputedValue` is open on `Finding`; recorded on reconciliation and classification, where a `room_nights_available` variance
   needs it.
-- **No eval scorecard**, for the same reason as at `v0.1.0`: the harness is PRD-94, and quoting a
+- **No eval scorecard**, for the same reason as at `v0.1.0`: the harness is the eval harness, and quoting a
   recall figure before it exists would be inventing one.
 
 ### The demo corpus is never scored
@@ -1008,7 +1049,7 @@ code that produced it would be demonstrating that the code equals itself.
 A clean pass on the data the system was rendered from is a tautology, not evidence. `corpus/demo/`
 exists so the happy path is demonstrable and so parsers have a realistic document to be built
 against. The scored fixtures — with planted errors, where catching something means something — are
-PRD-94, and they are the only ones `make eval` will report on.
+the eval harness, and they are the only ones `make eval` will report on.
 
 ---
 
@@ -1064,8 +1105,8 @@ broken code — not asserted in a document.
 - **`make datagen`, `run`, `review`, `eval`, `repro`, `demo` all exit 2** — declared, not
   implemented. A no-op exiting 0 would make an unbuilt pipeline look green.
 - **No cassettes are committed.** A cassette is keyed on a prompt version, and no prompts exist
-  until PRD-88. Hand-authoring them would fabricate the evidence the replay layer provides.
-- **No eval scorecard.** The harness is PRD-94, so this release has no recall or precision figures
+  until the agent runtime. Hand-authoring them would fabricate the evidence the replay layer provides.
+- **No eval scorecard.** The harness is the eval harness, so this release has no recall or precision figures
   to quote — and quoting any would be inventing them.
 - **Branch protection on `main` and `develop` is documented, not applied.** It needs repo admin.
 

@@ -107,7 +107,7 @@ def records() -> list[ReservationRecord]:
 
     Read from the committed CSV rather than by importing the generator, so this test exercises the
     *data* the documents were rendered from rather than the code that produced it. `source` is
-    synthesised: real citations come from the PDF extractor (PRD-85), and this test is about values.
+    synthesised: real citations come from the PDF extractor, and this test is about values.
     The refs are distinct per row so the citation-collapsing logic gets a realistic input rather than
     four hundred identical references.
     """

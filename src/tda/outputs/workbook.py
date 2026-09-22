@@ -24,7 +24,7 @@ was not checked, and that now means something.
 
 ## Five colours, not four
 
-PRD-92 names four. The fifth is grey, for a finding that is neither definitional nor material — a
+the outputs names four. The fifth is grey, for a finding that is neither definitional nor material — a
 V6 rounding difference, say. It exists because the alternative is worse in both directions: green
 would tell a reader a cell verified clean when it produced a finding, and red would escalate a
 rounding artefact into a material variance. A colour that overstates is how a correct system

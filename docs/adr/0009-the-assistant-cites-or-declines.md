@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-09-15
 - **Related:** [ADR-0001](0001-deterministic-core-agentic-edges.md) · [ADR-0004](0004-agent-runtime.md) · [ADR-0008](0008-the-review-gate-is-headless-and-the-evidence-is-cropped.md)
-- **Issues:** PRD-93
+- **Issues:** the reviewer-assist agent
 
 ## Context
 

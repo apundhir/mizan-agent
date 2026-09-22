@@ -468,7 +468,7 @@ def test_a_fabricated_citation_raises_rather_than_being_downgraded_to_a_decline(
 def test_a_good_answer_reaches_the_trace_with_its_question_citations_and_tokens(
     policy: Policy, verdict: Verdict
 ) -> None:
-    """PRD-93's recording requirement, asserted on the record rather than on a log line. The trace
+    """the reviewer-assist agent's recording requirement, asserted on the record rather than on a log line. The trace
     is where an auditor six weeks later reconstructs what the officer was told.
 
     The provider reports real figures rather than the stub's zeroes, so "the tokens spent" is an
@@ -922,7 +922,7 @@ def test_the_screen_asks_only_through_the_headless_layer() -> None:
 
     assert "put_question" in source
     assert "reviewer_assist import" not in source, "the screen reaches past tda.review.assist"
-    # PRD-93 asks for the box on the findings screen. A `_ask_box` nobody calls is a question box
+    # the reviewer-assist agent asks for the box on the findings screen. A `_ask_box` nobody calls is a question box
     # that exists in the module and not on the screen, and every other test here would still pass.
     assert "_ask_box(" in inspect.getsource(app.main)
 

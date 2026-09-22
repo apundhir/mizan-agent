@@ -7,7 +7,7 @@ wired straight into `st.text_input` would put the fabrication check, the trace a
 
 ## An answer is appended to the run's trace, not held in the session
 
-PRD-93 asks that every answer be recorded with its question, its citations and its tokens. The
+the reviewer-assist agent asks that every answer be recorded with its question, its citations and its tokens. The
 `TraceRecord` the runtime already writes carries all three — `output_json` is the whole
 `CitedAnswer`, question and citations included — so recording it means appending that record to the
 run's own `trace.jsonl`, beside the calls that produced the verdict.

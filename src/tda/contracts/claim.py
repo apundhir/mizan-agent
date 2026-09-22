@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 class Claim(BaseModel):
     """One figure asserted by the hotel's workbook, with the cell it came from.
 
-    Produced by the Excel claim parser (PRD-86) in its **second** stage: a model maps sheets
+    Produced by the Excel claim parser in its **second** stage: a model maps sheets
     to metrics, then `openpyxl` reads the values. A model never populates `value`.
     """
 

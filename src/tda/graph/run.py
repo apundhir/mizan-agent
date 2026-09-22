@@ -33,7 +33,7 @@ for one and the field cannot be filled from the only thing that produces out-of-
 It is left empty and the claims are carried on `RunState.out_of_scope` instead, so nothing is lost
 in this run. But D-SCOPE-02 says silence must not be mistaken for approval, and an empty field in
 the published verdict is exactly that silence. **Fixing it is a contract change** — the field needs
-a type that can represent a metric name outside the enum — and that belongs with PRD-92, which owns
+a type that can represent a metric name outside the enum — and that belongs with the outputs, which owns
 the verdict artefacts. Recorded here rather than worked around quietly.
 """
 
@@ -122,7 +122,7 @@ class RunResult:
     """A verdict and the records that explain it.
 
     The verdict alone is what a reviewer signs behind. The logs are what answers *"why did it say
-    that?"* — and PRD-90 writes both to `artifacts/<run_id>/`. Returning them together means a
+    that?"* — and observability writes both to `artifacts/<run_id>/`. Returning them together means a
     caller holding a verdict can always produce its working.
     """
 
@@ -178,7 +178,7 @@ def verify(
     run` builds one for that reason; a caller that does not care can leave it out.
 
     **It does not catch anything.** A node that fails has already written its exit record and
-    re-raised, and letting that propagate is the deferral PRD-89 asks for: a submission that halts
+    re-raised, and letting that propagate is the deferral the orchestrated graph asks for: a submission that halts
     simply halts, and a caller that wants to keep going is making a decision this function must not
     make for it.
     """

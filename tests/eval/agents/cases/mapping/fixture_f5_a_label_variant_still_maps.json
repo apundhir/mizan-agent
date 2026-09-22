@@ -1,5 +1,5 @@
 {
-  "why": "F5 (PRD-94) prints Czechia where the demo corpus prints Czech Republic - both resolve to CZ in the committed lookup, so the workbook this case shows the mapper has one different cell of text and no structural change. The mapping outcome must be identical to the clean demo case, and the recording exists only because the digest, which renders labels, differs by one string.",
+  "why": "F5 prints Czechia where the demo corpus prints Czech Republic - both resolve to CZ in the committed lookup, so the workbook this case shows the mapper has one different cell of text and no structural change. The mapping outcome must be identical to the clean demo case, and the recording exists only because the digest, which renders labels, differs by one string.",
   "input": {
     "workbook": "corpus/fixtures/F5/submission/claims_2026-Q1.xlsx"
   },

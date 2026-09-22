@@ -19,28 +19,28 @@ make ci         # ~5 seconds. Should be green on a fresh clone.
 
 ## Targets
 
-| Target | What it does | Story |
-|---|---|---|
-| `make setup` | venv + all extras, editable install | — |
+| Target | What it does |
+|---|---|
+| `make setup` | venv + all extras, editable install |
 | **`make ci`** | **lint → format → types → guards → policy → corpus → tests.** The gate. | — |
-| `make lint` / `make fmt` / `make fmt-check` | `ruff check` / `ruff format` / `ruff format --check` | — |
-| `make types` | `mypy --strict` over `src`, `tools`, `tests` | — |
-| `make guard` | Import guard + agent schema lint + secret guard | PRD-81 |
-| `make policy` | Validate `policy.yaml`: schema, referential, semantic, 24 adversarial cases | PRD-80 |
-| `make test` | `pytest` | — |
-| `make datagen` | Regenerate the synthetic corpus, byte-reproducibly | PRD-83 |
-| `make corpus` | Rebuild the corpus in a temp dir and diff digests against `corpus/demo/` | PRD-83 |
-| `make run` | Verify one submission end to end; prints the verdict, the node log and what it cost, and writes `artifacts/<run_id>/` — the observability files **and** the three artefacts an officer files | PRD-89, PRD-90, PRD-92 |
-| `make trace` | Render the most recent run as a tree: which agent ran, what it was asked for, what it returned, what it cost | PRD-90 |
-| `make review` | Both pages of `streamlit_app.py`: the Run console (pick a scene or upload files, watch the agents work) and the verification officer's screen, with the assistant's question box. Opens on the latest run; `RUN=<run_id>` for an older one | PRD-91, PRD-93, PRD-115 |
-| `make review-live` | Same, with live model calls - export `ANTHROPIC_API_KEY` in the shell first | PRD-115 |
-| `make eval` | Score every fixture against its derived expectation (three today; `tools/fixtures/spec.py` explains why not six) | PRD-94 |
-| `make repro` | Run twice, diff the verdict, timestamps excluded | PRD-94 |
-| `make demo` | The three scenes: pass, catch, refusal | PRD-97 |
-| `make record` | Refresh model cassettes against the live API (**needs a key, in the shell or `.env`**) | PRD-82 |
-| `make prompts` | Regenerate `prompts/MANIFEST.txt` after adding a prompt version | PRD-82 |
-| `make bundle` | Build the versioned release artefact | PRD-96 |
-| `make clean` | Remove caches and `artifacts/` | — |
+| `make lint` / `make fmt` / `make fmt-check` | `ruff check` / `ruff format` / `ruff format --check` |
+| `make types` | `mypy --strict` over `src`, `tools`, `tests` |
+| `make guard` | Import guard + agent schema lint + secret guard |
+| `make policy` | Validate `policy.yaml`: schema, referential, semantic, 24 adversarial cases |
+| `make test` | `pytest` |
+| `make datagen` | Regenerate the synthetic corpus, byte-reproducibly |
+| `make corpus` | Rebuild the corpus in a temp dir and diff digests against `corpus/demo/` |
+| `make run` | Verify one submission end to end; prints the verdict, the node log and what it cost, and writes `artifacts/<run_id>/` — the observability files **and** the three artefacts an officer files |
+| `make trace` | Render the most recent run as a tree: which agent ran, what it was asked for, what it returned, what it cost |
+| `make review` | Both pages of `streamlit_app.py`: the Run console (pick a scene or upload files, watch the agents work) and the verification officer's screen, with the assistant's question box. Opens on the latest run; `RUN=<run_id>` for an older one |
+| `make review-live` | Same, with live model calls - export `ANTHROPIC_API_KEY` in the shell first |
+| `make eval` | Score every fixture against its derived expectation (three today; `tools/fixtures/spec.py` explains why not six) |
+| `make repro` | Run twice, diff the verdict, timestamps excluded |
+| `make demo` | The three scenes: pass, catch, refusal |
+| `make record` | Refresh model cassettes against the live API (**needs a key, in the shell or `.env`**) |
+| `make prompts` | Regenerate `prompts/MANIFEST.txt` after adding a prompt version |
+| `make bundle` | Build the versioned release artefact |
+| `make clean` | Remove caches and `artifacts/` |
 
 Unimplemented targets print the issue that will implement them and **exit 2**. That is
 deliberate: a no-op exiting 0 would make an unbuilt pipeline look green, which is a worse
@@ -332,14 +332,29 @@ The manifest records the commit and whether the tree was dirty, so a clean check
 
 **8. Publish the GitHub release** against that tag, with the bundle attached.
 
-**9. Merge `main` back into `develop`.** `develop` requires a passing status check, so a direct
+**9. Publish the public snapshot** from the same tag. This repository is private; the public one is
+a squashed export of the tagged tree, which is why the development history never reaches it.
+```bash
+make snapshot TAG=v0.6.0 DRY=1     # audit only, pushes nothing
+make snapshot TAG=v0.6.0
+```
+The audit refuses the push rather than warning. It denies three paths outright, and it also reads
+the exported text for content that must not be published: internal tracker keys, a client region
+pin or acronym, a committed rate card, a currency amount. A refusal names the file and the line.
+Fix the export's source in this repository and re-tag; do not edit the exported tree.
+
+Removing a file from a later commit does **not** unpublish it. The snapshot commits on top rather
+than force-pushing, so anything published once stays fetchable from the commit that carried it.
+That is why the audit blocks the push instead of reporting afterwards.
+
+**10. Merge `main` back into `develop`.** `develop` requires a passing status check, so a direct
 push of a fresh merge commit is refused, because the check has never run against it. Open a PR from
 `main` into `develop` and merge that instead. Skipping this leaves the two branches permanently
 apart by one merge commit.
 
 ## Deploying to Streamlit Community Cloud
 
-The hosted demo (PRD-115) is `streamlit_app.py`, deployed from `apundhir/mizan-agent`'s `main`
+The hosted demo is `streamlit_app.py`, deployed from `apundhir/mizan-agent`'s `main`
 branch, on Streamlit Community Cloud's own free tier - no Docker in this path, no server to
 provision.
 
@@ -490,7 +505,7 @@ same prefix for exactly this reason; a log is not an artifact this codebase reda
   rendered from, so a clean pass on it is a tautology (ADR-0003). Only the S11 fixtures are scored.
 - **`agent schema lint ok: N AgentOutput contract(s)`** — the count is the thing to read. A lint
   that passes because it found nothing to check is a state a test deliberately watches for, and it
-  was the correct output until PRD-88 created `src/tda/agents`.
+  was the correct output until the agent runtime landed `src/tda/agents`.
 - **A per-agent eval case reports `not_recorded`.** Correct, and not a skip: it means no cassette
   matches that request. All twenty committed cases have one, so this is what a newly added case
   looks like, or a case whose prompt or schema moved. `make record` needs an API key and makes live
@@ -519,7 +534,7 @@ artifacts/<run_id>/
   verdict.json                  the complete result, with a summary block
   annotated_claims_2026-Q1.xlsx the hotel's own workbook, marked
   memo.docx                     one page: the verdict first, then the detail
-  run.json  trace.jsonl  nodes.jsonl        the working (PRD-90)
+  run.json  trace.jsonl  nodes.jsonl        the working
 ```
 
 **The annotated workbook is a copy.** The submitted file is never modified — `annotate` hashes it
@@ -538,7 +553,7 @@ and any finding that has no cell to sit on.
 
 **The memo's first block is the verdict**, because a supervisor reads the first block and nothing
 else. Its signature block says *"No human review has been recorded"* until somebody actually decides
-something (PRD-91) — it will never print a name nobody supplied.
+something — it will never print a name nobody supplied.
 
 ## What a release bundle contains
 

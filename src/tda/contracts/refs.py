@@ -159,12 +159,12 @@ type ExcelCitation = ExcelRef | NotReached
 #
 # **`PdfRef`** is the ordinary one: a reservation figure traced to rows on a page.
 #
-# **`NotReached`** came from PRD-85 in the Excel direction and PRD-86 in this one. A run that halts
+# **`NotReached`** came from PDF extraction in the Excel direction and the Excel claim parser in this one. A run that halts
 # while reading the PDFs has no workbook cell; and the Excel claim parser's self-consistency checks —
 # does each stated total equal the sum of its own components — run *before* the workbook is compared
 # to anything, so a finding from one has a cell and no page, by construction.
 #
-# **`InventoryRef`** came from PRD-87, and it is the same asymmetry a third time. `room_nights_available`
+# **`InventoryRef`** came from reconciliation and classification, and it is the same asymmetry a third time. `room_nights_available`
 # is an in-scope metric that a workbook claims and the system must check, and D-RNA-01 is explicit
 # that rooms available is a **property attribute, not a reservation attribute** — so its only source
 # is the inventory CSV and there is no page anywhere in the system to cite. Without this member a

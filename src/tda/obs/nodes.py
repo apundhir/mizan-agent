@@ -21,7 +21,7 @@ number this module computed.
 
 `NodeRecord` carries token counts and prompt versions for the node's *whole* turn, which is the
 sum over whatever model calls it made. That is a different question from the per-call one
-`TraceRecord` answers, and PRD-89 asks for it explicitly: an officer reading a run wants to know
+`TraceRecord` answers, and the orchestrated graph asks for it explicitly: an officer reading a run wants to know
 which **stage** cost what, without reconstructing it from a call log. For a code node both are
 empty, and empty is the correct answer rather than a missing one.
 

@@ -352,7 +352,7 @@ def mutated(
 
     One arm per `MutationKind`, and the arm is chosen here and nowhere else. `derive.py` never
     reads the kind to decide *whether* something is wrong: it compares this table against ground
-    truth. That split is the acceptance criterion of PRD-94, and it is visible in the fact that
+    truth. That split is the acceptance criterion of the eval harness, and it is visible in the fact that
     this function returns a claim table rather than anything resembling a finding.
     """
     mutation = spec.mutation

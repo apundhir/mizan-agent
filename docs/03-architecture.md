@@ -5,9 +5,8 @@
 
 | | |
 |---|---|
-| **Issues** | PRD-88 (agent runtime) · PRD-82 (model layer) · PRD-81 (contracts and guards) |
 | **Decisions** | [ADR-0001](adr/0001-deterministic-core-agentic-edges.md) · [ADR-0002](adr/0002-model-layer.md) · [ADR-0004](adr/0004-agent-runtime.md) · [ADR-0006](adr/0006-observability-redaction-and-recorded-runtime.md) |
-| **Also here** | the graph's five nodes and their wiring (§8, PRD-89) and what a run leaves behind (§9, PRD-90) |
+| **Also here** | the graph's five nodes and their wiring (§8, the orchestrated graph) and what a run leaves behind (§9, observability) |
 
 ---
 
@@ -403,12 +402,12 @@ states the limit this does not cover, and ADR-0006 states why the patterns are n
 ```
 run-a5e8fb89466a  PASS  MZN-DXB-001  2026-Q1
   policy 1.3.0 · metrics 1.0.0 · claude-sonnet-5 (stub)
-  5 input file(s) · $0.0000 (rates 2026-09-13) · 6,665ms
+  5 input file(s) · rates not configured · 6,665ms
   redacted: nothing
 ├─ intake               ok            47ms
 ├─ extract              ok         5,224ms
 ├─ claim_parse          ok            23ms  1 call(s)
-│  └─ mapping/v1  [stub f0a0e6f0…]  0/0 tok  $0.0000  0ms
+│  └─ mapping/v1  [stub f0a0e6f0…]  0/0 tok  0ms
 │     asked for: WorkbookMapping, with list_sheets, peek_headers x4
 │     returned: blocks [7] · cover {3} · unmapped [0]
 ├─ recompute_reconcile  ok         1,359ms
@@ -452,7 +451,7 @@ different reader.
 
 `write_outputs` writes `verdict.json`, **reads it back**, and renders the memo and the workbook
 comments from what came off the disk. No downstream document can then say more than the verdict it
-accompanies — which is the defect PRD-90's review found in the console output, and which would be
+accompanies — which is the defect the observability review found in the console output, and which would be
 considerably worse in a Word file that gets forwarded.
 
 The annotated workbook's **cells** are exempt: that file is a copy of the hotel's own submission
@@ -481,7 +480,7 @@ whether the tool changed what it was judging. See
 ## 11 · The review gate
 
 `make review` opens a Streamlit screen over one run's `verdict.json`. **Its acceptance criterion is
-a stopwatch** — PRD-91: *if judging one finding requires opening the PDF in another window, the
+a stopwatch**: *if judging one finding requires opening the PDF in another window, the
 screen has failed, regardless of how correct the finding is.*
 
 So each finding is one card carrying, without a click: the figures, the cause, **the report rows
@@ -496,7 +495,7 @@ reject or amend.
 
 ### The gate is headless, and that is what makes it testable
 
-`record_decision` takes paths and strings. The screen calls it; PRD-91's fallback console flow
+`record_decision` takes paths and strings. The screen calls it; the review screen's fallback console flow
 would call the same function, which is how *"the verdict schema does not change with the fallback"*
 becomes a property rather than a promise. It also means the review gate is exercised in `make ci`
 without a browser.
@@ -519,7 +518,7 @@ human has looked. See [ADR-0008](adr/0008-the-review-gate-is-headless-and-the-ev
 
 ## 12 · The Run console
 
-`streamlit_app.py`, the hosted demo (PRD-115): pick a prepared scene or upload a submission, press
+`streamlit_app.py`, the hosted demo: pick a prepared scene or upload a submission, press
 Run, watch the pipeline work, read the verdict, hand off to the review gate above. It is the same
 "headless module plus a thin Streamlit shell" shape as §11, extended over a run that has not
 happened yet rather than one already on disk.

@@ -85,7 +85,7 @@ class Declaration:
 
     Supplied by the caller rather than read out of the documents, and that is the point of intake.
     A system that derives the hotel and period from the files it was given can never detect the
-    case PRD-89 asks it to detect — a submission for the wrong property or the wrong quarter, which
+    case the orchestrated graph asks it to detect — a submission for the wrong property or the wrong quarter, which
     is internally consistent and still wrong. Something outside the files has to assert what they
     are supposed to be, and then the files are checked against it.
     """

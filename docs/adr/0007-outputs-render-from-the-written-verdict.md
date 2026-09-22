@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-09-14
 - **Related:** [ADR-0001](0001-deterministic-core-agentic-edges.md) · [ADR-0006](0006-observability-redaction-and-recorded-runtime.md)
-- **Issues:** PRD-92
+- **Issues:** the outputs
 
 ## Context
 
@@ -20,13 +20,13 @@ consumer count. Every consumer would then re-implement the one filter that matte
 items are a separate array, and adding them to the findings count turns a policy disagreement into
 a hotel error (D-MAT-06).
 
-**The memo and the workbook restate what the verdict says.** PRD-90's review found `mizan run`
+**The memo and the workbook restate what the verdict says.** observability's review found `mizan run`
 printing an unredacted ledger beside a redacted file. The same shape is available here and worse:
 a Word document is forwarded, filed and printed, so a memo that says more than the JSON next to it
 is a leak with a long life.
 
-**The memo has a signature block.** PRD-92 asks for it to name the reviewer. At the moment a run
-finishes there is no reviewer — the review gate is PRD-91 and `Verdict.review_records` is empty.
+**The memo has a signature block.** the outputs asks for it to name the reviewer. At the moment a run
+finishes there is no reviewer — the review gate is the review screen and `Verdict.review_records` is empty.
 
 **The workbook has to be annotated.** The obvious implementation opens the submitted file, colours
 the cells and saves. That destroys the evidence the whole comparison rests on, and it does it
@@ -76,7 +76,7 @@ annotate a copy" from a claim in a docstring into a postcondition.
 
 ### 5 · Every generated document is byte-reproducible, and neither format is by accident
 
-`make repro` (PRD-94) compares two runs of one submission. `verdict.json` is byte-stable by
+`make repro` compares two runs of one submission. `verdict.json` is byte-stable by
 construction; a `.docx` and an `.xlsx` are not. Both writers stamp `dcterms:modified` with the wall
 clock **inside `save()`** — openpyxl discards whatever the caller set beforehand, which looks like
 it should work and does not — and every zip entry carries a DOS timestamp of its own, at
@@ -126,7 +126,7 @@ everything else.
   model, and a formula's last-computed value is not part of that model. Excel recalculates on open,
   so a person sees the right number; a *script* reading the copy with `data_only=True` sees `None`.
   The original is the file to read values from, which is the right default anyway.
-- **A fifth colour.** PRD-92 names four. Grey is added for a finding that is neither definitional
+- **A fifth colour.** the outputs names four. Grey is added for a finding that is neither definitional
   nor material — a V6 rounding difference — because green would say a cell verified clean when it
   produced a finding, and red would escalate a rounding artefact into a material variance.
 - **The memo is not always one page.** A verdict with forty findings does not fit and should not
@@ -166,7 +166,7 @@ where anybody should add a chart.
 |---|---|
 | No summary block; let consumers count | Every consumer re-implements the D-MAT-06 filter, and the first one that forgets reports policy disagreements as hotel errors. |
 | `computed_field` on `Verdict` | Breaks the round trip under `extra="forbid"`. A verdict file that cannot be read back is not an artefact, it is an export. |
-| Render the memo from the in-memory verdict | Exactly the defect PRD-90's review found in the console output, made durable in a Word file. |
+| Render the memo from the in-memory verdict | Exactly the defect observability's review found in the console output, made durable in a Word file. |
 | Annotate the submitted workbook in place | Destroys the evidence the comparison rests on, and silently. |
 | Copy the workbook but trust the copy | A promise in a docstring. The digest check is four lines and makes it a fact. |
 | Print the operator's name in the signature block | A forged sign-off. The person who signs is the person who signs. |

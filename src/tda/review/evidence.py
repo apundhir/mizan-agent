@@ -1,6 +1,6 @@
 """The two things a reviewer must see to judge a finding, without leaving the screen.
 
-PRD-91's acceptance criterion is a stopwatch: *if judging one finding requires opening the PDF in
+the review screen's acceptance criterion is a stopwatch: *if judging one finding requires opening the PDF in
 another window, the screen has failed, regardless of how correct the finding is.* An officer who
 cannot check the agent in ten seconds will not sign behind it, and then the correctness of the
 finding is beside the point.
@@ -365,7 +365,7 @@ def _png(image: Image.Image) -> bytes:
 def cell_region(workbook: Path, reference: ExcelRef) -> CellView:
     """The cited cell and the neighbours that make it legible.
 
-    Read with `data_only=True`, which is what the claim parser reads with (PRD-86): the reviewer
+    Read with `data_only=True`, which is what the claim parser reads with: the reviewer
     must see the **value** the system compared, not the formula behind it. Showing `=SUM(B2:B4)`
     where the verdict says 1,295 would send an officer looking for a discrepancy that is not there.
     """

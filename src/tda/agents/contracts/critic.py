@@ -25,7 +25,7 @@ right answers earn.
 ## Scoring is not here
 
 This contract is what the critic returns. Turning a set of these into a grade for a prompt version
-is PRD-95's job, and it lives in the eval harness where the thresholds are visible next to the
+is narrative grading's job, and it lives in the eval harness where the thresholds are visible next to the
 results. A `passed` property computed from the four observations is the most this file should own,
 and it is deliberately the strictest possible rule — any one failure fails the narrative — so that
 a later relaxation has to be written down somewhere a reviewer will see it.

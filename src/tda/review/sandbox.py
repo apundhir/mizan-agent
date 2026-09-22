@@ -41,7 +41,7 @@ into once a real parser opens it, by a mechanism this codebase did not anticipat
 tries to enumerate. Defence in depth, not either-or.
 
 Not used for a prepared scene. A scene's files are this repository's own committed corpus or a
-fixture derived from it - nothing this process did not already trust before PRD-115 existed - so
+fixture derived from it - nothing this process did not already trust before the hosted console existed - so
 running one keeps the existing in-process path and its live, node-by-node progress. Only a
 viewer's own upload, the one input this codebase has never authored, pays the subprocess cost and
 gives up watching each stage light up as it happens: `tda.review.console` shows a single "verifying

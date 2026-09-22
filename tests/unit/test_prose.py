@@ -1,7 +1,7 @@
 """Grade the prose: the same sequence `make eval` runs, with both trace records kept.
 
 **A real fixture, graded for real, carries both trace records** - the property this module exists
-for, checked against the actual cassettes PRD-95's `make eval` already proves work.
+for, checked against the actual cassettes narrative grading's `make eval` already proves work.
 
 **One missing cassette is one row, not a blank panel.** `grade_verdict` catches per finding, unlike
 `tda.eval.narrative.grade_finding`, which is right for a fixture that must all grade and wrong for

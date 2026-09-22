@@ -19,7 +19,7 @@ metric added to `policy.yaml` then reaches the agent without a prompt edit — a
 mean a new prompt version and a re-record of every cassette, which is a heavy price for a
 configuration change that the checking code already handles correctly.
 
-**The two tools are called through a `ToolSession`** (PRD-88), even though there is no tool-use loop
+**The two tools are called through a `ToolSession`**, even though there is no tool-use loop
 here and never will be — `tda.excel.tools` explains why an agent with no channel is a stronger
 guarantee than an agent with a filtered one. The session is not the enforcement mechanism for
 *values*; redaction is. What it adds is the allowlist and the record: the trace now says which tools

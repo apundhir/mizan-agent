@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 @pytest.fixture
 def registry(tmp_path: Path) -> PromptRegistry:
     """A registry over a temporary tree, so these tests do not depend on prompts that land in
-    PRD-88 and do not break when they do."""
+    the agent runtime and do not break when they do."""
     mapping = tmp_path / "mapping"
     mapping.mkdir()
     (mapping / "v1.md").write_text(
@@ -100,7 +100,7 @@ def test_latest_is_a_developer_convenience_and_a_run_uses_policy(registry: Promp
     verification does. Convenience that quietly changes behaviour is not convenience.
 
     This test documents the intent; the enforcement is that the agent runtime reads the version
-    from `policy.yaml` (PRD-88).
+    from `policy.yaml`.
     """
     assert registry.latest("mapping").version == "v2"
     assert registry.load("mapping", "v1").version == "v1"
@@ -160,7 +160,7 @@ def test_committed_prompts_match_the_manifest() -> None:
     the cassette key hashes the version, so an edited `v1` keeps its key and serves a response
     recorded against text nobody can read any more.
 
-    Vacuously true today — there are no prompts until PRD-88 — and the `exists()` branch is what
+    Vacuously true today — there are no prompts until the agent runtime — and the `exists()` branch is what
     stops that vacuity from becoming permanent silence.
     """
     on_disk = PromptRegistry().manifest()

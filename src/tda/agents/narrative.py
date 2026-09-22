@@ -34,7 +34,7 @@ A V2 has a permutation to lean on. A V1, a V5 and a V7 have none, and a class na
 say *what* two things disagree, *which side* is missing a figure, or *why* nothing could be
 compared. Asked for a sentence anyway, the agent filled that gap on its own: an invented pair of
 source systems for a plain transcription mismatch, a directional claim about which document holds
-a missing value, a specific mechanism for an unresolved label. PRD-95's own critic caught every one
+a missing value, a specific mechanism for an unresolved label. narrative grading's own critic caught every one
 of these as ungrounded, on real fixture findings, the first time anything graded one. See
 `_structural_fact` below: one line per class, derived from field presence rather than a value, so
 the fix adds a fact without adding a figure.

@@ -11,7 +11,7 @@ PYTHON   ?= python3.12
 .DEFAULT_GOAL := help
 .PHONY: help setup ci lint fmt fmt-check types test guard policy prompts \
         datagen corpus fixtures fixtures-verify run trace review review-live eval repro demo \
-        record bundle clean
+        record bundle snapshot clean
 
 help:  ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -116,6 +116,9 @@ prompts:  ## Regenerate prompts/MANIFEST.txt after adding a prompt version
 
 bundle:  ## Build the versioned release artefact: dist/mizan-<version>.tar.gz
 	$(PY) tools/release/bundle.py
+
+snapshot:  ## Publish a tag to the public repository (TAG=v0.6.0; add DRY=1 to audit only)
+	$(PY) tools/release/public_snapshot.py $(TAG) $(if $(DRY),--dry-run,)
 
 # A target that does not exist yet says so and exits non-zero. A no-op that
 # exits 0 is worse than an error: it makes an unbuilt pipeline look green.

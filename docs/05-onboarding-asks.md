@@ -90,27 +90,8 @@ number to quote.
 ## Ask 6: confirm hosting region and the reporting quarter basis
 
 The lowest-stakes ask on this list, and it is here for completeness rather than urgency. This
-build runs against the Anthropic Console API rather than the Bedrock region the original PRD
-named, because it is a personal reference build rather than a production deployment; the provider is an
-interface specifically so the pinned-region question stays a config change rather than a
-rebuild. Confirming the region, and confirming that a calendar quarter in the property's local
-time is the reporting basis the regulator actually uses, is minor rework either way, not a redesign.
-
-## The prize beyond verification
-
-Everything above is about trusting a number the system checks. There is a second, larger
-opportunity sitting one step past it, and it is named here, last, on purpose.
-
-If the agent can recompute the aggregations from the PDFs, the hotel-authored Excel becomes
-redundant. the regulator could ingest the PDFs and generate the return itself, removing a manual step at
-every participating hotel and the transcription errors that step creates. That is not a bigger
-version of verification; it is a different product, one that changes a hotel's reporting
-obligation rather than checking it.
-
-The sequencing is deliberate, not cosmetic. Verification helps the regulator's team and threatens nobody
-at a participating hotel. Generation changes a hotel's process and its obligation, and raising
-that possibility before verification has even been trusted would ask the regulator to buy the larger, riskier
-idea on the strength of a demonstration that has not yet been adopted for the smaller one. The
-prize is worth naming so the investment is judged on its full value, not worth leading with, and
-worth asking for only once the verification result is trusted on its own merits, not just this
-demonstration.
+is a reference build rather than a production deployment, so it runs wherever the provider's own
+API lives. The provider sits behind an interface specifically so a pinned-region requirement stays
+a config change rather than a rebuild. Confirming the region, and confirming that a calendar
+quarter in the property's local time is the reporting basis actually used, is minor rework either
+way, not a redesign.

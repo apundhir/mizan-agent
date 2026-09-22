@@ -1,6 +1,6 @@
 """The fixture producer, checked against the one property the whole story rests on.
 
-PRD-94's acceptance criterion is that an expectation is **derived** and never written. That is a
+the eval harness's acceptance criterion is that an expectation is **derived** and never written. That is a
 claim about code, so most of this file is written to fail if the code stopped being like that:
 
 - **Sensitivity.** Retarget the transposition at another country and the expected *cell* must move

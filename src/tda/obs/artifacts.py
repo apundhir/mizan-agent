@@ -13,7 +13,7 @@ The fourth is younger than the other three (v0.6.0, when the supervisor was wire
 pipeline) and optional on read for exactly that reason: a run written before it existed has nothing
 wrong with it, only nothing to say here. See `tda.obs.routing`.
 
-`verdict.json` is **not** here. That is PRD-92's, and the split is deliberate: the verdict is the
+`verdict.json` is **not** here. That is the outputs's, and the split is deliberate: the verdict is the
 thing an officer signs behind, and the artifacts are its working. Putting them in one writer would
 make the evidence and the conclusion move together whenever either changed.
 
@@ -26,7 +26,7 @@ free-prose contract field — and why the answer is redaction rather than refusa
 
 ## Byte-stability, and the fields that are allowed to move
 
-`make repro` (PRD-94) runs the pipeline twice and diffs. Everything written here is byte-stable
+`make repro` runs the pipeline twice and diffs. Everything written here is byte-stable
 between two replay runs **except** the fields `RunLedger.volatile_fields()` names — which is read
 off the field descriptions, so it cannot drift out of step with the model.
 

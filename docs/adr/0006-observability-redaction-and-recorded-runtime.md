@@ -3,18 +3,18 @@
 - **Status:** Accepted
 - **Date:** 2026-09-14
 - **Related:** [ADR-0001](0001-deterministic-core-agentic-edges.md) · [ADR-0002](0002-model-layer.md) · [ADR-0005](0005-sequential-graph-and-deferred-resilience.md)
-- **Issues:** PRD-90
+- **Issues:** observability
 
 ## Context
 
 An agentic system you cannot inspect is an agentic system you cannot defend. The pipeline ran
-end to end after PRD-89 and left almost nothing behind: a verdict, and whatever scrolled past in
+end to end after the orchestrated graph and left almost nothing behind: a verdict, and whatever scrolled past in
 the terminal. The question an officer asks the day a hotel disputes a finding — *why did it say
 that?* — had no artifact to answer it.
 
 Three decisions inside that story were not obvious, and each had a plausible opposite.
 
-**Personal data can reach an artifact, and it comes from outside this repository.** PRD-90 asked
+**Personal data can reach an artifact, and it comes from outside this repository.** observability asked
 for a test scanning the trace for name-shaped content from the corpus. The corpus has no names in
 it: `tools/datagen/ledger.py` emits a salted `guest_ref` and says why, in M2. So that test would
 have passed vacuously — the worst kind of green.
@@ -171,7 +171,7 @@ observations of a POC on one machine, and nothing here says what a verification 
 | Refuse to write an artifact containing personal data | Destroys the record in order to protect it. The trace is the evidence, and a missing trace is not a safer trace. |
 | Redact on read, keep the original on disk | Then the artifact is the leak and the viewer is decoration. |
 | Broad "looks like a name" patterns | Fires on `Room Nights` and `Rate Revenue`. A guard that cries wolf on correct data gets switched off, and then nothing is guarded. |
-| Scan the trace for corpus guest names, as PRD-90 wrote it | The corpus has no names; the test would pass vacuously. Reframed to the exposure that is demonstrable, with the reasoning recorded here and in `tda/obs/redact.py`. |
+| Scan the trace for corpus guest names, as observability wrote it | The corpus has no names; the test would pass vacuously. Reframed to the exposure that is demonstrable, with the reasoning recorded here and in `tda/obs/redact.py`. |
 | A `node` field on `TraceRecord` | Makes a record of a model call depend on the pipeline that made it. The arithmetic join is exact for a sequential graph, and says so out loud when it stops being. |
 | Put token counts on the agent contracts | They are integers, and `tools/guard/agent_schema_lint.py` forbids an integer on an `AgentOutput`. Weakening that guard to carry telemetry would trade the deterministic-core claim for a convenience. |
 | Print a time-saving figure | Nobody has measured the manual baseline. A number used before it is measured gets challenged, and the challenge lands on the whole result. |

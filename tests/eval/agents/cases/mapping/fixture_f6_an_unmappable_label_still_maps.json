@@ -1,5 +1,5 @@
 {
-  "why": "F6 (PRD-94) prints Freedonia in the Nationality sheet, a label the committed lookup has never seen. Resolving that label is tda.excel.read's job, deterministic and downstream of mapping - the mapping agent only has to say which range holds which metric, and an unresolvable country name inside a block it can already see does not change that answer. The mapping outcome must be identical to the clean demo case; the blocking refusal this fixture exists to demonstrate happens one stage later, in tda.excel.run, and never reaches this agent at all.",
+  "why": "F6 prints Freedonia in the Nationality sheet, a label the committed lookup has never seen. Resolving that label is tda.excel.read's job, deterministic and downstream of mapping - the mapping agent only has to say which range holds which metric, and an unresolvable country name inside a block it can already see does not change that answer. The mapping outcome must be identical to the clean demo case; the blocking refusal this fixture exists to demonstrate happens one stage later, in tda.excel.run, and never reaches this agent at all.",
   "input": {
     "workbook": "corpus/fixtures/F6/submission/claims_2026-Q1.xlsx"
   },

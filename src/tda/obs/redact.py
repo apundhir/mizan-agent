@@ -1,6 +1,6 @@
 """Nothing personal reaches an artifact, and what was removed is counted.
 
-PRD-90 asks for a test that scans the trace for name-shaped content from the corpus. **The corpus
+observability asks for a test that scans the trace for name-shaped content from the corpus. **The corpus
 contains no names**, by a design decision made in M2: `tools/datagen/ledger.py` produces a salted
 `guest_ref` hash and says why — *"a generator that invented plausible names and then withheld them
 from the output would be one careless `print` away from putting a name in a log."* So a scan for

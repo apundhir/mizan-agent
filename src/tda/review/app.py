@@ -1,6 +1,6 @@
 """The verification officer's screen. `make review`.
 
-**The acceptance criterion is a stopwatch.** PRD-91: *if judging one finding requires opening the
+**The acceptance criterion is a stopwatch.** the review screen: *if judging one finding requires opening the
 PDF in another window, the screen has failed, regardless of how correct the finding is.* Everything
 below follows from that one sentence.
 

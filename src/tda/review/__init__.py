@@ -12,7 +12,7 @@ it can do is available without it:
 
 ## Why the shell is thin
 
-PRD-91 names a console flow as the fallback if the sprint tightens, and requires it to *"record the
+the review screen names a console flow as the fallback if the sprint tightens, and requires it to *"record the
 identical decision structure so the verdict schema does not change with the fallback"*. That
 guarantee costs nothing when there is one recorder and is unenforceable when there are two — so
 `decisions` is headless, takes paths and strings, and is what the tests drive. The screen is what a

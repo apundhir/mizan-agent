@@ -1,10 +1,10 @@
-"""Grading the prose beside each finding: PRD-95, kept outside the deterministic score.
+"""Grading the prose beside each finding: narrative grading, kept outside the deterministic score.
 
 `make eval` scores the numbers (`tda.eval.score`). This module is the other half: for every
 finding a fixture's `Verdict` carries, write the sentence an officer would read (`narrate`) and
 grade it (`grade`), then hand back a plain `NarrativeResult` rather than a `CriticVerdict` — see
 `tda.eval.scoring.NarrativeResult` for why. Its output joins `score_fixture`'s checks and never
-touches `Verdict` itself, matching PRD-95's own framing: the critic's output affects the eval
+touches `Verdict` itself, matching narrative grading's own framing: the critic's output affects the eval
 report, never a verdict.
 
 ## Why a fresh `AgentRunner` per finding

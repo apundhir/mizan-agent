@@ -10,7 +10,7 @@ stay re-runnable against it. `annotate` digests the original before and after an
 differ, so the promise is a postcondition rather than an intention. The test below proves the check
 works by comparing digests itself.
 
-Beyond that, each test corresponds to one line of PRD-92: the colour of each cell class, the
+Beyond that, each test corresponds to one line of the outputs: the colour of each cell class, the
 comment contents each colour must carry, the order of the memo's blocks, and the separation of
 definitional items from findings — which is D-MAT-06 again, in a document this time. A policy
 disagreement printed in a table headed "Findings" is a correct finding that reads as an accusation.
@@ -282,7 +282,7 @@ def test_a_written_verdict_reads_back_as_what_was_written(tmp_path: Path) -> Non
 
 
 def test_two_writes_of_one_verdict_are_byte_identical(tmp_path: Path) -> None:
-    """What PRD-94's repro diff compares. Sorted keys, no timestamp of its own."""
+    """What the eval harness's repro diff compares. Sorted keys, no timestamp of its own."""
     verdict = verdict_with(material_finding())
     first, _ = write_verdict(tmp_path / "a", verdict)
     second, _ = write_verdict(tmp_path / "b", verdict)
@@ -316,7 +316,7 @@ def test_personal_data_in_an_unmapped_label_is_redacted_from_the_verdict(tmp_pat
 
 
 def test_the_submitted_workbook_is_not_modified(tmp_path: Path, workbook: Path) -> None:
-    """The guarantee PRD-92 asks for, checked the way the code checks it. It is the hotel's
+    """The guarantee the outputs asks for, checked the way the code checks it. It is the hotel's
     evidence: the comparison must stay re-runnable against it, and nobody should have to ask
     whether the tool changed what it was judging."""
     before = file_digest(workbook)
@@ -517,7 +517,7 @@ def test_definitional_items_are_in_their_own_section_and_never_in_the_findings_t
 
 
 def test_the_signature_block_does_not_claim_a_review_that_did_not_happen(tmp_path: Path) -> None:
-    """At the moment a run finishes there is no reviewer — the review gate is PRD-91. A memo that
+    """At the moment a run finishes there is no reviewer — the review gate is the review screen. A memo that
     printed a name anyway would be a forged sign-off on the one page a supervisor reads."""
     path = write_memo(tmp_path, verdict_with(material_finding()))
     text = paragraphs(path)
@@ -591,7 +591,7 @@ def test_all_three_artefacts_are_written(tmp_path: Path, workbook: Path) -> None
 def test_the_memo_is_rendered_from_the_written_verdict_rather_than_the_one_in_memory(
     tmp_path: Path, workbook: Path
 ) -> None:
-    """The PRD-90 defect, in a Word file this time: `mizan run` printed the unredacted ledger while
+    """The observability defect, in a Word file this time: `mizan run` printed the unredacted ledger while
     the file beside it said `[redacted:email]`. The memo is rendered from what came off the disk, so
     it cannot say more than the JSON it sits next to."""
     address = "jane.doe" + "@" + "hotel.ae"
@@ -835,7 +835,7 @@ def test_a_workbook_that_already_has_a_legend_sheet_is_still_counted_honestly(
 def test_all_three_artefacts_are_byte_identical_across_two_runs(
     tmp_path: Path, workbook: Path
 ) -> None:
-    """What `make repro` (PRD-94) will compare, for every artefact rather than only the JSON.
+    """What `make repro` will compare, for every artefact rather than only the JSON.
 
     Neither a `.docx` nor an `.xlsx` is reproducible by accident: both writers stamp
     `dcterms:modified` with the wall clock inside `save()` — openpyxl discards whatever the caller

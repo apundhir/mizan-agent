@@ -21,7 +21,7 @@ of the file the finding was computed from.
 ## What varies between runs, and why that is stated rather than hidden
 
 `run_id`, `started_at`, `finished_at` and every `duration_ms` differ on every run of the same
-submission. `make repro` (PRD-94) compares two runs and must exclude them — so they are named here,
+submission. `make repro` compares two runs and must exclude them — so they are named here,
 in `VOLATILE_FIELDS`, rather than left for that story to rediscover by diffing and being surprised.
 
 Everything else is byte-stable by construction: `UsageLedger.per_agent()` sorts, `prompt_versions`
@@ -45,7 +45,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from tda.obs.nodes import NodeLog, NodeRecord, Phase
 from tda.obs.repro import REPRO_EXCLUDED, volatile_paths
-from tda.obs.usage import PRICING_VERSION, AgentUsage, UsageLedger
+from tda.obs.usage import AgentUsage, RateCard, UsageLedger
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -146,11 +146,16 @@ class RunLedger(BaseModel):
     # ── where the time and the money went ────────────────────────────────────
     nodes: tuple[NodeTiming, ...] = ()
     usage: tuple[AgentUsage, ...] = ()
-    pricing_version: str = PRICING_VERSION
-    total_cost_usd: str = Field(
-        default="0.0000",
+    pricing_version: str | None = Field(
+        default=None,
+        description="The operator's rate card version, or null when none was configured. No rate "
+        "card ships with this repository.",
+    )
+    total_cost_usd: str | None = Field(
+        default=None,
         description="A string, not a float. A cost rolled up in binary floating point drifts in "
-        "the cents, and a figure that does not reconcile is worse than no figure.",
+        "the cents, and a figure that does not reconcile is worse than no figure. Null means no "
+        "rate card was configured, which is not the same as a run that cost nothing.",
     )
     redactions: tuple[tuple[str, int], ...] = Field(
         default=(),
@@ -170,7 +175,7 @@ class RunLedger(BaseModel):
         """Every field that legitimately differs between two runs of the same submission.
 
         Read off the field descriptions rather than kept beside them, so the list cannot drift out
-        of step with the model it describes. `make repro` (PRD-94) compares two runs and excludes
+        of step with the model it describes. `make repro` compares two runs and excludes
         exactly these; anything else differing between two replay runs is a reproducibility defect
         rather than an expected variance.
 
@@ -252,25 +257,34 @@ def _names_for(rows: list[NodeTiming | None], open_rows: dict[str, list[int]]) -
     return names
 
 
-def cost_summary(usage: UsageLedger) -> str:
+def cost_summary(usage: UsageLedger, rates: RateCard | None = None) -> str:
     """Per agent and per run, with the rate card that produced it.
 
     The pricing version is stamped beside the figure because prices are a **configured input, not
     a fact**: a cost without the rate card that generated it cannot be reconciled later.
+
+    With no rate card the token columns still print and the money column reads `rates not
+    configured`. Printing a zero instead would state a price this repository does not know.
     """
     per_agent = usage.per_agent()
     if not per_agent:
-        return f"  no model calls  ($0.0000, rates {PRICING_VERSION})"
-    # The rows and the total are both `AgentUsage.cost_usd`, which rounds once - so the column
-    # adds up to the figure printed under it. See that property for why that is not a detail.
+        return "  no model calls"
+    # The rows and the total are both `RateCard.cost_of`, which rounds once, so the column adds up
+    # to the figure printed under it. See that method for why that is not a detail.
     lines = [
         f"  {u.agent:<18} {u.calls:>3} call(s)  "
-        f"{u.input_tokens:>7,} in / {u.output_tokens:>6,} out  ${u.cost_usd:.4f}"
+        f"{u.input_tokens:>7,} in / {u.output_tokens:>6,} out"
+        + (f"  ${rates.cost_of(u):.4f}" if rates else "")
         for u in per_agent
     ]
+    total = usage.total_cost_usd(rates)
     lines.append(
-        f"  {'total':<18} {usage.total_calls():>3} call(s)  "
-        f"{'':>7} {'':>6}      ${usage.total_cost_usd():.4f}  (rates {PRICING_VERSION})"
+        f"  {'total':<18} {usage.total_calls():>3} call(s)  {'':>7} {'':>6}"
+        + (
+            f"      ${total:.4f}  (rates {rates.version})"
+            if rates and total is not None
+            else "      rates not configured"
+        )
     )
     return "\n".join(lines)
 
@@ -291,6 +305,7 @@ def build_ledger(
     nodes: NodeLog,
     usage: UsageLedger,
     duration_ms: int,
+    rates: RateCard | None = None,
 ) -> RunLedger:
     """Assemble the ledger. Every argument is a fact the caller already holds.
 
@@ -315,6 +330,9 @@ def build_ledger(
         inputs=tuple(InputFile.of(path) for path in sorted(present, key=lambda p: p.name)),
         nodes=timings_from(nodes),
         usage=tuple(usage.per_agent()),
-        total_cost_usd=f"{usage.total_cost_usd():.4f}",
+        pricing_version=rates.version if rates else None,
+        total_cost_usd=(lambda t: f"{t:.4f}" if t is not None else None)(
+            usage.total_cost_usd(rates)
+        ),
         duration_ms=duration_ms,
     )

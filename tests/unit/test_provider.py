@@ -41,7 +41,7 @@ from tda.agents.provider.anthropic_client import build_request_params
 
 
 class Mapping(AgentOutput):
-    """A stand-in for the real mapping contract, which lands in PRD-88."""
+    """A stand-in for the real mapping contract, which lands in the agent runtime."""
 
     sheet: str
     cell_range: str

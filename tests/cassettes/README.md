@@ -36,7 +36,7 @@ purpose: the cassettes are then recordings of exactly the calls the eval suite r
 `tda.agents.cases.run_case` is shared by both so a case cannot be recorded against one question and
 replayed against another.
 
-**Twenty-three more, for `narrate()`/`grade()` against real fixture findings (PRD-95)**: 11 real
+**Twenty-three more, for `narrate()`/`grade()` against real fixture findings**: 11 real
 findings across F2, F3, F4 and F6, one `narrative` cassette and one `critic` cassette each, plus one
 held-back, deliberately bad narrative graded against F3's real definitional finding and never used
 as that fixture's actual narrative. A fixture's findings are not declared in a case file the way an

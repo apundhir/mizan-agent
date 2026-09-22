@@ -8,7 +8,7 @@ Lifting it out is what makes the whole story possible. A mutation names a **clai
 (`guests_by_nationality`, `2026-01`, `DE`) and never a cell reference; the table resolves it to
 `Nationality!B10`. Change the sheet layout and the spec keeps working, because the expectation is
 built from the same table the renderer wrote from. A hand-written expectation citing `B10` would
-quietly start asserting the wrong cell, which is the drift PRD-94's acceptance criterion names.
+quietly start asserting the wrong cell, which is the drift the eval harness's acceptance criterion names.
 
 ## What is in the table, and what deliberately is not
 

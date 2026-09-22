@@ -2,7 +2,7 @@
 
 Every field a spec may carry is here, and the set is deliberately small. A spec names a **claim**
 and a **kind of damage**; it never names a cell, a value, a variance class, a severity or an
-escalation target. Those are all derived (`derive.py`), and the reason is the defect PRD-94 exists
+escalation target. Those are all derived (`derive.py`), and the reason is the defect the eval harness exists
 to prevent: a hand-written expectation is a second source of truth, and when the two disagree the
 test keeps passing while asserting the wrong thing.
 

@@ -867,7 +867,7 @@ def test_a_misfiled_verdict_is_rejected(policy: Policy) -> None:
 
 def test_agent_contracts_carry_no_numbers() -> None:
     """`tools/guard/agent_schema_lint.py` asserts this across `src/` by reading declarations. This
-    asserts it about the contracts PRD-88 added, from the **JSON schema** the provider actually
+    asserts it about the contracts the agent runtime added, from the **JSON schema** the provider actually
     sends — so it holds even for a field whose numeric type the lint's textual scan cannot see.
 
     Agents pass keys and references, never numbers. The whitelist is citations, not quantities:

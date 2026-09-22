@@ -3,11 +3,11 @@
 - **Status:** Accepted
 - **Date:** 2026-09-18
 - **Related:** [ADR-0004](0004-agent-runtime.md) · [ADR-0006](0006-observability-redaction-and-recorded-runtime.md) · [ADR-0008](0008-the-review-gate-is-headless-and-the-evidence-is-cropped.md)
-- **Issues:** PRD-115
+- **Issues:** the hosted console
 
 ## Context
 
-PRD-115 asks for a viewer-facing demo: pick a scene or upload a submission, watch the agents work,
+the hosted console asks for a viewer-facing demo: pick a scene or upload a submission, watch the agents work,
 read the verdict, hand off to the review gate ADR-0008 already built. Three facts turned up while
 reading the code for that story, and each one narrowed what "watch the agents work" could honestly
 mean.
@@ -263,11 +263,11 @@ a claim that live mode is free to leave on; it is bounded, not eliminated as a c
 
 | Alternative | Why it lost |
 |---|---|
-| Read existing logs instead of wiring the supervisor in | Considered and rejected before implementation: a routing panel built over decisions nobody made is a prop, not a demo of the thing PRD-115 asks to show |
+| Read existing logs instead of wiring the supervisor in | Considered and rejected before implementation: a routing panel built over decisions nobody made is a prop, not a demo of the thing the hosted console asks to show |
 | A subprocess or external worker for a scene's own run | Buys isolation a known, committed input does not need, at the cost of shipping run state across a process boundary this codebase would then have to keep in sync - the isolation only an upload's untrusted content later turned out to require, in §7 |
 | Store request text on `TraceRecord` | Changes a contract every existing writer and reader depends on, to serve one new caller; recovery from the cassette or from the same builder that made the request costs nothing upstream |
 | A single process-wide cap only, no per-session cap | A busy demo would let one heavy session exhaust the whole deployment's live budget before a second viewer got a turn |
 | Let `grade_verdict` propagate on a missing cassette, matching `make eval` | Correct for a batch scorer that must not report a partial pass; wrong for an on-demand button where one ungraded finding should not blank a panel showing several graded ones |
 | Keep enumerating and closing each OOXML construct `staging` did not yet bound | Tried for five rounds; every fix closed the exact construction a review demonstrated and left the next `openpyxl` range-expanding method open, which is chasing a library's internals rather than bounding a cost |
-| Ship the console without an upload path, scenes only | Considered and offered to the user as an option after the fifth round; rejected because "upload your own files" is a named part of PRD-115, not an extra |
+| Ship the console without an upload path, scenes only | Considered and offered to the user as an option after the fifth round; rejected because "upload your own files" is a named part of the hosted console, not an extra |
 | Run every console job, scene or upload, in the same resource-limited subprocess | Would pay the lost live-progress cost for a scene too, over an input this codebase already trusted before the console existed; the isolation buys nothing there that decision 1's own reasoning did not already cover |

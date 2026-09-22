@@ -1,6 +1,6 @@
 """Which fields are allowed to differ between two runs of the same submission.
 
-`make repro` (PRD-94) runs the pipeline twice and diffs. Something has to say which differences are
+`make repro` runs the pipeline twice and diffs. Something has to say which differences are
 expected, and the decision taken in M1 — on `Verdict.decided_at` — is that the field says it
 itself, in its own description. A parallel list kept somewhere else drifts out of step with the
 model it describes, and the drift is silent: the diff simply starts passing over a field that has
@@ -69,7 +69,7 @@ def strip_volatile(payload: object, paths: frozenset[str], *, _prefix: str = "")
     """A JSON-shaped copy of `payload` with every volatile path removed, lists included.
 
     What a diff harness actually needs: `volatile_paths` names the fields and this removes them, so
-    PRD-94 compares two runs without reimplementing the traversal - and without the two
+    the eval harness compares two runs without reimplementing the traversal - and without the two
     implementations drifting, which is the failure this whole module is about.
     """
     if isinstance(payload, list):

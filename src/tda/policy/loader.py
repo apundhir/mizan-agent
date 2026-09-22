@@ -288,7 +288,7 @@ class Classification(_Lenient):
 class Materiality(_Lenient):
     """How severe a variance is, and where it goes — decided mechanically, never by a model.
 
-    `thresholds` and the two definitional fields were being dropped by `extra="ignore"` until PRD-87
+    `thresholds` and the two definitional fields were being dropped by `extra="ignore"` until reconciliation and classification
     needed them. They are loaded now because both say something the reconciliation engine must not
     be free to contradict, and a rule that is only in a comment is a rule nothing enforces.
     """
@@ -341,7 +341,7 @@ class AgentSettings(_Lenient):
 
 
 class Budget(_Lenient):
-    """The supervisor's per-run cap on model calls (PRD-88).
+    """The supervisor's per-run cap on model calls.
 
     Two numbers rather than one. The per-agent cap is what catches a loop, and a total-only budget
     would let one runaway agent spend every other agent's allowance before anything noticed.
@@ -356,7 +356,7 @@ class ModelSettings(_Lenient):
     model_id: str
     agents: dict[str, AgentSettings]
     # Optional on the Python side although the JSON schema requires it, so a policy file written
-    # before PRD-88 still loads — `Supervisor` falls back to its own conservative defaults rather
+    # before the agent runtime still loads — `Supervisor` falls back to its own conservative defaults rather
     # than to no budget at all. A missing budget must never mean an unbounded run.
     budget: Budget | None = None
 

@@ -22,7 +22,7 @@ verification is legible in the same file as its rules rather than in Python.
 
 ## Reviewer-assist
 
-Listed here with its allowlist, and its implementation lands in PRD-93. The entry exists now
+Listed here with its allowlist, and its implementation lands in the reviewer-assist agent. The entry exists now
 because the roster is the audited artefact: an agent that appears in the architecture diagram and
 not in the table is an agent whose permissions nobody wrote down.
 """

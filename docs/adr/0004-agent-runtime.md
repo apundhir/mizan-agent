@@ -3,9 +3,9 @@
 - **Status:** Accepted
 - **Date:** 2026-09-13
 - **Related:** [ADR-0001](0001-deterministic-core-agentic-edges.md) · [ADR-0002](0002-model-layer.md)
-- **Issues:** PRD-88
+- **Issues:** the agent runtime
 
-> **On the number.** PRD-88's description names this file `0003-agent-runtime.md`. ADR-0003 was
+> **On the number.** the agent runtime's description names this file `0003-agent-runtime.md`. ADR-0003 was
 > taken by the ledger-first corpus decision before this story started, and `adr/README.md` already
 > listed the agent runtime as 0004. Numbers are allocated on write, not reserved in advance; the
 > issue text is the stale half.

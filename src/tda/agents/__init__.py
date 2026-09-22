@@ -26,7 +26,7 @@ The mapping agent lives with the Excel parser (`tda.excel.agent`), because its c
 inseparable from the geometry checks that make it safe. The roster still declares its allowlist —
 an agent whose permissions are not in the table is an agent whose permissions nobody wrote down.
 
-Reviewer-assist is declared in the roster and implemented in PRD-93.
+Reviewer-assist is declared in the roster and implemented in the reviewer-assist agent.
 """
 
 from tda.agents.roster import (

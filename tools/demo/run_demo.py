@@ -1,4 +1,4 @@
-"""`make demo`: three real runs of the actual pipeline, in replay mode, no key anywhere [PRD-97].
+"""`make demo`: three real runs of the actual pipeline, in replay mode, no key anywhere [the demo scenes].
 
 Three scenes, each a full `verify_directory` call against the real graph, not a mock of it:
 

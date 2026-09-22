@@ -31,7 +31,7 @@ has ever been measured, so a time figure here is an observation and never an ach
 `tda.eval.narrative.grade_narratives` runs after the verdict is read back, over the same findings
 `score` scores numerically. Its results join `score`'s checks in one tuple, so a narrative that
 leaks a number or reads as an accusation fails the fixture through the same all-or-nothing rule a
-numeric mismatch does (PRD-95). A cassette miss inside it is indistinguishable from one inside the
+numeric mismatch does. A cassette miss inside it is indistinguishable from one inside the
 pipeline run: both are caught by the `try` below and reported as `Outcome.NOT_RECORDED`.
 """
 

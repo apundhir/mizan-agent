@@ -405,8 +405,8 @@ A real run, against the committed demo corpus:
 ```
 $ make run
 ...
-  mapping              1 call(s)    5,255 in /  1,248 out  $0.0575
-  total                1 call(s)                      $0.0575  (rates 2026-09-13)
+  mapping              1 call(s)    5,255 in /  1,248 out
+  total                1 call(s)                      rates not configured
   policy 1.3.1  metrics 1.0.0  model claude-sonnet-5 (replay)
   inputs: 5 file(s)
   artifacts: artifacts/run-e36375f4b8a6
@@ -416,12 +416,12 @@ $ make run
 $ make trace RUN=run-e36375f4b8a6
 run-e36375f4b8a6  PASS  MZN-DXB-001  2026-Q1
   policy 1.3.1 · metrics 1.0.0 · claude-sonnet-5 (replay)
-  5 input file(s) · $0.0575 (rates 2026-09-13) · 3,172ms
+  5 input file(s) · rates not configured · 3,172ms
   redacted: nothing
 ├─ intake               ok            57ms
 ├─ extract              ok         2,344ms
 ├─ claim_parse          ok            11ms  1 call(s)
-│  └─ mapping/v1  [replay 3edcea88…]  5,255/1,248 tok  $0.0575  0ms
+│  └─ mapping/v1  [replay 3edcea88…]  5,255/1,248 tok  0ms
 │     asked for: WorkbookMapping, with list_sheets, peek_headers x4
 │     returned: blocks [7] · cover {3} · unmapped [0]
 ├─ recompute_reconcile  ok           751ms

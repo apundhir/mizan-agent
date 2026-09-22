@@ -4,7 +4,7 @@
 - **Date:** 2026-09-13
 - **Supersedes:** —
 - **Related:** [ADR-0002 model layer](0002-model-layer.md) · [ADR-0004 agent runtime](0004-agent-runtime.md)
-- **Issues:** PRD-80, PRD-81
+- **Issues:** policy validation, the contracts and guards
 
 ## Context
 

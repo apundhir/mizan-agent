@@ -8,7 +8,7 @@ one.
 ## Why the screen is a shell over this, and not the other way round
 
 Everything here is headless and takes paths and strings. The Streamlit app calls it; so could a
-console flow, which is the fallback PRD-91 names — *"the console flow must record the identical
+console flow, which is the fallback the review screen names — *"the console flow must record the identical
 decision structure so the verdict schema does not change with the fallback."* That guarantee is
 free if there is one recorder and expensive if there are two, so there is one.
 
@@ -31,7 +31,7 @@ appending to what is actually on disk *is* the merge.
 
 "Amend only applies to a transcription error" was a `disabled=` on a Streamlit button, which meant
 the rule held for the surface that happened to implement it and not for the gate. A console flow —
-the fallback PRD-91 names — would have recorded a corrected figure against a definitional variance,
+the fallback the review screen names — would have recorded a corrected figure against a definitional variance,
 which is telling a hotel to change a number that is not wrong. A rule enforced in one of two front
 ends is a rule with a hole in it.
 

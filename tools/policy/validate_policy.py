@@ -160,7 +160,7 @@ NEGATIVE_CASES: list[tuple[str, str, Callable[[Policy], None]]] = [
     ),
     (
         "agent budget removed",
-        "A run with no cap is a run a looping agent can bill without limit (PRD-88).",
+        "A run with no cap is a run a looping agent can bill without limit.",
         lambda p: p["model"].pop("budget"),
     ),
     (
